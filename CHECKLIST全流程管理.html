@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>调度工作台 · 航次CHECKLIST</title>
+
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Vue 3 CDN -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<!-- Inter font -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          corp: {
+            900: '#0b2545', // deep corporate blue
+            800: '#13315c',
+            700: '#1d4e89',
+            600: '#2f6fbd',
+          },
+          page: '#f8fafc',
+        },
+        fontFamily: {
+          sans: ['Inter', 'Microsoft YaHei', 'PingFang SC', 'system-ui', 'sans-serif'],
+        },
+      },
+    },
+  }
+</script>
+
+<style>
+  html, body { height: 100%; }
+  body { font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif; }
+
+  /* 锁定 110% 缩放：zoom 放在 #app 上（而非 html 根），并用 calc(100vw|100vh / 1.1)
+     抵消其自身放大，使 #app 渲染后恰好铺满视口 —— 底部状态栏始终可见、整页不溢出无滚动条 */
+  .app-zoom {
+    zoom: 0.9;
+    width: calc(100vw / 0.9);
+    height: calc(100vh / 0.9);
+  }
+
+  /* Slim scrollbars */
+  .slim-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+  .slim-scroll::-webkit-scrollbar-track { background: transparent; }
+  .slim-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+  .slim-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  /* 节点看板：等高网格，5 张卡片大小一致，卡片内部列表独立滚动 */
+
+  .fade-enter-active { transition: opacity .25s ease, transform .25s ease; }
+  .fade-enter-from { opacity: 0; transform: translateY(6px); }
+
+  /* 节点详情切换动画 */
+  .node-fade-enter-active { transition: opacity .22s ease, transform .22s ease; }
+  .node-fade-enter-from { opacity: 0; transform: translateY(8px); }
+  .node-fade-leave-active { transition: opacity .12s ease; }
+  .node-fade-leave-to { opacity: 0; }
+
+  /* 进度环动画 */
+  .ring-arc { transition: stroke-dashoffset 1s ease-out; }
+
+  /* 看板卡片流转动画 */
+  .kc-move { transition: transform .35s ease; }
+  .kc-enter-active { transition: opacity .3s ease, transform .3s ease; }
+  .kc-enter-from { opacity: 0; transform: translateY(8px) scale(.98); }
+  .kc-leave-active { transition: opacity .2s ease, transform .2s ease; }
+  .kc-leave-to { opacity: 0; transform: scale(.96); }
+
+  /* 展开/收起过渡动画（高度 + 透明度，柔和缓动） */
+  .top-collapse-area, .compact-bar, .assistant-body { overflow: hidden; transition: max-height .42s cubic-bezier(.4,0,.2,1), opacity .3s ease; }
+  .top-collapse-area.is-open { max-height: 180px; opacity: 1; }
+  .top-collapse-area.is-closed { max-height: 0; opacity: 0; }
+  .compact-bar.is-shown { max-height: 60px; opacity: 1; }
+  .compact-bar.is-hidden { max-height: 0; opacity: 0; }
+  .assistant-body.is-open { max-height: 260px; opacity: 1; }
+  .assistant-body.is-closed { max-height: 0; opacity: 0; }
+
+  /* AI 呼吸灯：表现活跃状态 */
+  .ai-breathe { animation: aiBreathe 2.8s ease-in-out infinite; }
+  @keyframes aiBreathe {
+    0%, 100% { opacity: .88; box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+    50%      { opacity: 1;   box-shadow: 0 0 0 3px rgba(99,102,241,.18); }
+  }
+  /* 推荐提问卡片：悬浮上浮 + 浅紫描边 */
+  .suggestion-card { transition: transform .2s ease, border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+  .suggestion-card:hover { transform: translateY(-2px); border-color: #a5b4fc; background-color: #eef2ff; box-shadow: 0 4px 10px -4px rgba(99,102,241,.25); }
+
+  /* 骨架屏微光动画 */
+  .skeleton {
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* 树形菜单行 hover 过渡 */
+  .tree-row { transition: background-color .18s ease; }
+
+  /* 树形菜单展开/折叠过渡 */
+  .tree-children-enter-active { transition: max-height .35s ease, opacity .25s ease; overflow: hidden; }
+  .tree-children-enter-from { max-height: 0; opacity: 0; }
+  .tree-children-leave-active { transition: max-height .25s ease, opacity .15s ease; overflow: hidden; }
+  .tree-children-leave-to { max-height: 0; opacity: 0; }
+
+  /* 证书即将到期呼吸脉冲 */
+  @keyframes statusPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+  .status-expiring { animation: statusPulse 2s ease-in-out infinite; }
+
+  /* 智能助手Tab 对话气泡动画 */
+  .msg-enter-active { transition: all 0.3s ease; transform: translateY(0); opacity: 1; }
+  .msg-enter-from { transform: translateY(10px); opacity: 0; }
+  /* 智能助手快捷按钮悬浮效果 */
+  .quick-action { transition: all 0.2s ease; }
+  .quick-action:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(99,102,241,0.15); }
+  /* 智能助手对话历史项选中背景渐变 */
+  .history-item-active { background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border-color: #a5b4fc; }
+  /* 智能助手头像动画 */
+  .avatar-pulse { animation: avatarPulse 2s ease-in-out infinite; }
+  @keyframes avatarPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); } 50% { box-shadow: 0 0 0 8px rgba(99,102,241,0); } }
+  /* Markdown风格的AI回复样式 */
+  .ai-content { line-height: 1.7; }
+  .ai-content code { background: #eef2ff; color: #4f46e5; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  /* 打字光标动画 */
+  .typing-cursor { display: inline-block; width: 8px; height: 18px; background: #6366f1; margin-left: 2px; animation: cursorBlink 0.8s infinite; }
+  @keyframes cursorBlink { 0%,50% { opacity:1; } 51%,100% { opacity:0; } }
+
+  /* 工具链调用区域动画 */
+  .tool-call-enter-active { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+  .tool-call-enter-from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+
+  /* 单个工具步骤动画 */
+  @keyframes stepAppear {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .tool-step { animation: stepAppear 0.3s ease-out forwards; }
+
+  /* 运行中步骤的脉冲效果 */
+  @keyframes stepRunning {
+    0%,100% { background-color: rgba(129,140,248,0.1); }
+    50% { background-color: rgba(129,140,248,0.2); }
+  }
+  .step-running { animation: stepRunning 1s ease-in-out infinite; }
+
+  /* 完成步骤的勾选动画 */
+  @keyframes checkPop {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  .check-complete { animation: checkPop 0.3s ease-out forwards; }
+
+  /* AI回答气泡出现动画 */
+  @keyframes aiBubbleIn {
+    0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+    60% { transform: translateY(-3px) scale(1.02); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .ai-bubble-enter { animation: aiBubbleIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+  /* 用户气泡出现动画 */
+  @keyframes userBubbleIn {
+    0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .user-bubble-enter { animation: userBubbleIn 0.35s ease-out forwards; }
+
+  /* 聊天区域平滑滚动 */
+  .chat-scroll { scroll-behavior: smooth; }
+</style>
+</head>
+
+<body class="bg-page text-slate-800 antialiased">
+<div id="app" class="app-zoom flex flex-col overflow-hidden">
+
+  <!-- ══════════════ 0. 加载骨架屏 ══════════════ -->
+  <div v-if="loading" class="fixed inset-0 z-50 bg-page flex flex-col">
+    <div class="h-14 shrink-0 bg-corp-900"></div>
+    <div class="flex-1 flex min-h-0">
+      <div class="w-14 shrink-0 bg-corp-900"></div>
+      <div class="w-[20%] min-w-[220px] shrink-0 bg-white border-r border-slate-200 p-4 space-y-3">
+        <div class="skeleton h-4 w-24 rounded"></div>
+        <div class="skeleton h-[88px] rounded-xl"></div>
+        <div class="skeleton h-[88px] rounded-xl"></div>
+        <div class="skeleton h-[88px] rounded-xl"></div>
+      </div>
+      <div class="flex-1 p-5 flex flex-col gap-4 min-w-0">
+        <div class="skeleton h-5 w-64 rounded"></div>
+        <div class="skeleton h-[76px] rounded-xl shrink-0"></div>
+        <div class="skeleton h-[64px] rounded-xl shrink-0"></div>
+        <div class="flex-1 grid grid-cols-3 gap-4 min-h-0">
+          <div class="skeleton rounded-xl"></div>
+          <div class="skeleton rounded-xl"></div>
+          <div class="skeleton rounded-xl"></div>
+        </div>
+      </div>
+      <div class="w-[20%] min-w-[220px] shrink-0 bg-white border-l border-slate-200 p-4 space-y-3">
+        <div class="skeleton h-4 w-24 rounded"></div>
+        <div class="skeleton h-14 rounded-xl"></div>
+        <div class="skeleton h-14 rounded-xl"></div>
+        <div class="skeleton h-14 rounded-xl"></div>
+      </div>
+    </div>
+    <div class="h-11 shrink-0 bg-white border-t border-slate-200"></div>
+  </div>
+
+  <!-- ══════════════ 1. TOP HEADER BAR ══════════════ -->
+  <header class="h-14 shrink-0 bg-corp-900 text-white flex items-center px-4 gap-6 shadow-md z-20">
+    <!-- Left: brand -->
+    <div class="flex items-center gap-2.5 min-w-[180px]">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-corp-600 flex items-center justify-center shadow-md shadow-corp-900/40 ring-1 ring-white/25">
+        <svg class="w-[18px] h-[18px] text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <circle cx="12" cy="12" r="8.5"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 5l1.5 5.5L19 12l-5.5 1.5L12 19l-1.5-5.5L5 12l5.5-1.5z"/>
+        </svg>
+      </div>
+      <span class="text-[15px] font-bold tracking-wide">智能调度系统</span>
+    </div>
+
+    <!-- Center: nav -->
+    <nav class="flex-1 flex items-center justify-center gap-1">
+      <template v-for="item in navItems" :key="item.id">
+        <a v-if="item.type === 'link'" :href="item.href" target="_blank" rel="noopener"
+          class="px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors text-slate-300 hover:text-white hover:bg-white/5 no-underline">
+          {{ item.label }}
+        </a>
+        <button v-else @click="activeNav = item.id"
+          :class="['px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors',
+            item.id === activeNav ? 'bg-white/15 text-white' : 'text-slate-300 hover:text-white hover:bg-white/5']">
+          {{ item.label }}
+        </button>
+      </template>
+    </nav>
+
+    <!-- Right: notifications + user -->
+    <div class="flex items-center gap-4 min-w-[180px] justify-end">
+      <button class="relative p-1.5 rounded-full hover:bg-white/10 transition-colors">
+        <svg class="w-5 h-5 text-slate-200" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+        </svg>
+        <span class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-[10px] font-bold flex items-center justify-center">3</span>
+      </button>
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-corp-600 flex items-center justify-center text-xs font-bold ring-2 ring-white/20">调度</div>
+        <div class="leading-tight hidden sm:block">
+          <div class="text-[13px] font-semibold">王调度</div>
+          <div class="text-[11px] text-slate-400">调度一室</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════ BODY ══════════════ -->
+  <div class="flex-1 flex min-h-0">
+
+    <!-- ════════ 2. LEFT ICON SIDEBAR ════════ -->
+    <!-- 左侧图标栏已移除 -->
+
+    <!-- ════════ 3. LEFT PANEL — 我关注的船舶 (20%) ════════ -->
+    <section v-show="activeNav === 'checklist' && !reportMode" class="w-[20%] min-w-[220px] shrink-0 bg-white border-r border-slate-200 flex flex-col min-h-0">
+      <div class="px-4 pt-4 pb-3 flex items-center justify-between shrink-0">
+        <h2 class="text-[14px] font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-1 h-4 rounded-full bg-corp-600"></span>我关注的船舶
+        </h2>
+        <span class="text-[11px] text-slate-400">{{ vessels.length }} 艘</span>
+      </div>
+      <div class="flex-1 overflow-y-auto slim-scroll px-3 pb-3 space-y-2.5">
+        <transition-group name="fade">
+          <div v-for="v in sortedVessels" :key="v.name" @click="selectVessel(v)"
+            :class="['rounded-xl border p-3 cursor-pointer transition-all',
+              v.active
+                ? 'border-corp-600 bg-gradient-to-br from-corp-900 to-corp-700 text-white shadow-lg shadow-corp-900/20'
+                : 'border-slate-200 bg-white hover:border-corp-600/40 hover:shadow-md']">
+            <div class="flex items-center gap-2.5">
+              <span :class="['w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
+                v.active ? 'bg-white/15 text-sky-300' : 'bg-corp-900/5 text-corp-700']">
+                <svg class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 15.5L3 11h18l-1 4.5M7 11V7.5h5V11M12 11V5h4.5v6M3 19.5c1.5 1.2 3 1.2 4.5 0 1.5-1.2 3-1.2 4.5 0 1.5 1.2 3 1.2 4.5 0 1.5-1.2 3-1.2 4.5 0" />
+                </svg>
+              </span>
+              <span :class="['flex-1 min-w-0 truncate text-[13.5px] font-bold', v.active ? 'text-white' : 'text-slate-800']">{{ v.name }}</span>
+              <span :class="['shrink-0 text-[10px] px-1.5 py-0.5 rounded font-semibold',
+                v.active ? 'bg-emerald-400/90 text-emerald-950' : statusChip(v.status)]">{{ v.status }}</span>
+              <button @click.stop="togglePin(v)" :title="v.pinned ? '取消置顶' : '置顶'"
+                :class="['shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors',
+                  v.pinned ? 'text-amber-500' : (v.active ? 'text-slate-400 hover:text-amber-300' : 'text-slate-300 hover:text-amber-500')]">
+                <svg class="w-[15px] h-[15px]" :fill="v.pinned ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.807-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                </svg>
+              </button>
+            </div>
+            <div :class="['mt-1 text-[11.5px]', v.active ? 'text-sky-200' : 'text-slate-500']">航次 {{ v.voyage }}</div>
+            <div v-if="v.route" :class="['mt-2 flex items-center gap-1.5 text-[10.5px]', v.active ? 'text-slate-300' : 'text-slate-400']">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+              </svg>
+              {{ v.route }}
+            </div>
+            <div v-if="v.active" class="mt-2.5">
+              <div class="flex justify-between text-[10px] text-slate-300 mb-1"><span>航次进度</span><span>{{ v.progress }}%</span></div>
+              <div class="h-1.5 rounded-full bg-white/15 overflow-hidden">
+                <div class="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400" :style="{ width: v.progress + '%' }"></div>
+              </div>
+            </div>
+          </div>
+        </transition-group>
+      </div>
+    </section>
+
+    <!-- ════════ 4. CENTER PANEL — 航次CHECKLIST (60%) ════════ -->
+    <main v-show="activeNav === 'checklist'" class="flex-1 min-w-0 flex flex-col min-h-0 bg-page">
+      <!-- 顶部可收起区域（标题 + 步骤条 + 总进度） -->
+      <div :class="['shrink-0 top-collapse-area', topCollapsed ? 'is-closed' : 'is-open']">
+      <!-- Center header -->
+      <div class="px-5 pt-4 pb-3 shrink-0 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 min-w-0">
+          <h1 class="text-[17px] font-extrabold text-slate-900 tracking-tight whitespace-nowrap">航次CHECKLIST</h1>
+          <span class="h-4 w-px bg-slate-200 shrink-0"></span>
+          <div class="flex items-center gap-2 text-[12px] text-slate-500">
+            <span class="font-semibold text-corp-700">{{ activeVessel.name }}</span>
+            <span class="text-slate-300">/</span>
+            <span>{{ activeVessel.voyage }}</span>
+            <span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold whitespace-nowrap" :class="statusChip(activeVessel.status)">
+              <span class="w-1.5 h-1.5 rounded-full bg-current opacity-70 animate-pulse"></span>{{ activeVessel.status }}
+            </span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- 收起顶部导航 -->
+          <button @click="topCollapsed = true" title="收起顶部导航"
+            class="p-1.5 rounded-lg text-slate-400 hover:text-corp-700 hover:bg-slate-100 transition-colors">
+            <svg :class="['w-4 h-4 transition-transform', topCollapsed ? '' : 'rotate-180']" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+          <!-- 全屏显示入口 -->
+          <button @click="reportMode = !reportMode"
+            :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11.5px] font-semibold transition-colors shadow-sm',
+              reportMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-corp-900 text-white hover:bg-corp-700']">
+            <svg v-if="!reportMode" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+            </svg>
+            <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+            </svg>
+            {{ reportMode ? '退出全屏' : '全屏显示' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 流程导航 Step-Tab（控制中枢）：点击切换下方详情 -->
+      <div class="px-5 pb-3 shrink-0">
+        <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-white/70 border border-slate-200/70 overflow-x-auto slim-scroll">
+          <button v-for="(node, i) in nodes" :key="node.id" @click="selectNode(node.id)"
+            :class="['relative flex-1 min-w-[124px] flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-200',
+              isActiveNode(node) ? 'bg-corp-900 text-white shadow-md shadow-corp-900/15' : 'text-slate-600 hover:bg-slate-100/70']">
+            <!-- 进度环 -->
+            <svg viewBox="0 0 36 36" class="w-7 h-7 shrink-0">
+              <circle cx="18" cy="18" r="15" fill="none" :stroke="isActiveNode(node) ? 'rgba(255,255,255,0.22)' : '#e9eef5'" stroke-width="3.2"/>
+              <circle class="ring-arc" cx="18" cy="18" r="15" fill="none"
+                :stroke="ringColor(node)" stroke-width="3.2" stroke-linecap="round"
+                :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? nodePercent(node) : 0)"
+                transform="rotate(-90 18 18)"/>
+              <g v-if="node.status === 'done'" :class="isActiveNode(node) ? 'text-white' : 'text-emerald-500'" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 18.5l3.4 3.4L24 13"/>
+              </g>
+              <text v-else x="18" y="19.2" text-anchor="middle" dominant-baseline="central"
+                :fill="isActiveNode(node) ? '#ffffff' : '#64748b'" font-size="12.5" font-weight="700">{{ node.id }}</text>
+            </svg>
+            <div class="flex flex-col min-w-0">
+              <span :class="['text-[12.5px] font-bold truncate leading-tight', isActiveNode(node) ? 'text-white' : 'text-slate-700']">{{ node.title }}</span>
+              <span :class="['text-[10px] tabular-nums leading-tight mt-0.5', isActiveNode(node) ? 'text-slate-300' : 'text-slate-400']">{{ nodePercent(node) }}% · {{ nodeDoneCount(node) }}/{{ node.items.length }}</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 航次总进度（极简细条） -->
+      <div class="px-5 pb-3 shrink-0">
+        <div class="flex items-center gap-4">
+          <div class="flex items-baseline gap-2 shrink-0">
+            <span class="text-[11px] text-slate-500">航次总进度</span>
+            <span class="text-[16px] font-extrabold text-corp-700 tabular-nums leading-none">{{ displayPercent }}%</span>
+          </div>
+          <div class="flex-1 h-1.5 rounded-full bg-slate-200/70 overflow-hidden min-w-[80px]">
+            <div class="h-full rounded-full bg-gradient-to-r from-corp-600 via-blue-400 to-emerald-400 transition-all duration-1000 ease-out"
+              :style="{ width: (animated ? overallStats.percent : 0) + '%' }"></div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0 text-[11px] text-slate-500">
+            <span>完成 <b class="text-slate-700 tabular-nums">{{ overallStats.done }}/{{ overallStats.total }}</b></span>
+            <span class="hidden sm:flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>已结 <b class="text-slate-700 tabular-nums">{{ overallStats.doneNodes }}</b></span>
+            <span class="hidden sm:flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>进行 <b class="text-slate-700 tabular-nums">{{ overallStats.activeNodes }}</b></span>
+            <span class="hidden md:flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>待启 <b class="text-slate-400 tabular-nums">{{ overallStats.pendingNodes }}</b></span>
+          </div>
+        </div>
+      </div>
+      </div><!-- /顶部可收起区域 -->
+
+      <!-- 收起态：紧凑条 -->
+      <div :class="['shrink-0 px-5 py-2.5 flex items-center gap-3 bg-white/40 compact-bar', topCollapsed ? 'is-shown border-b border-slate-200/70' : 'is-hidden']">
+        <span class="text-[17px] font-extrabold tracking-tight whitespace-nowrap"><span class="text-slate-900">航次CHECKLIST</span><span class="text-slate-300 mx-1.5">·</span><span class="text-corp-700">{{ activeNode.title }}</span></span>
+        <span class="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full" :class="statusBadgeClass(activeNode)">
+          <span class="w-1.5 h-1.5 rounded-full" :class="statusDotClass(activeNode)"></span>{{ statusLabel(activeNode) }}
+        </span>
+        <div class="flex-1"></div>
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- 展开顶部导航 -->
+          <button @click="topCollapsed = false" title="展开顶部导航"
+            class="p-1.5 rounded-lg text-slate-400 hover:text-corp-700 hover:bg-slate-100 transition-colors">
+            <svg :class="['w-4 h-4 transition-transform', topCollapsed ? '' : 'rotate-180']" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+          <!-- 全屏显示入口 -->
+          <button @click="reportMode = !reportMode"
+            :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11.5px] font-semibold transition-colors shadow-sm',
+              reportMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-corp-900 text-white hover:bg-corp-700']">
+            <svg v-if="!reportMode" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+            </svg>
+            <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+            </svg>
+            {{ reportMode ? '退出全屏' : '全屏显示' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 详情区：看板三分栏（已完成 / 执行中 / 待启动） -->
+      <div class="flex-1 min-h-0 px-5 pb-5 pt-3 flex flex-col">
+        <transition name="node-fade" mode="out-in">
+          <div :key="activeNode.id" class="flex flex-col h-full min-h-0">
+            <!-- 三栏看板 -->
+            <div class="flex-1 min-h-0 grid grid-cols-3 gap-4">
+              <!-- 已完成 -->
+              <div class="flex flex-col min-w-0 rounded-2xl bg-slate-50/50 border border-slate-200/70 overflow-hidden">
+                <div class="px-3 py-2.5 flex items-center gap-2 bg-emerald-50/80 border-b border-emerald-100/80 shrink-0">
+                  <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                  </span>
+                  <span class="text-[12.5px] font-bold text-emerald-700">已完成</span>
+                  <span class="ml-auto min-w-[20px] h-[20px] px-1.5 rounded-full bg-emerald-100 text-emerald-700 text-[10.5px] font-bold flex items-center justify-center tabular-nums">{{ kanbanDone(activeNode).length }}</span>
+                </div>
+                <div class="flex-1 min-h-0 overflow-y-auto slim-scroll p-2">
+                  <transition-group name="kc" tag="div" class="space-y-2">
+                    <div v-for="item in kanbanDone(activeNode)" :key="item.text"
+                      class="rounded-xl bg-white border border-slate-200/80 shadow-sm p-2.5 flex items-center gap-2">
+                      <span class="flex-1 min-w-0 text-[12.5px] text-slate-400 line-clamp-2">{{ item.text }}</span>
+                      <span class="shrink-0 inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-semibold border" :class="priorityTag(item).cls">{{ priorityTag(item).label }}</span>
+                      <span class="shrink-0 w-5 h-5 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center" title="已完成">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                      </span>
+                    </div>
+                  </transition-group>
+                  <div v-if="!kanbanDone(activeNode).length" class="text-center text-[11px] text-slate-300 py-8">暂无已完成任务</div>
+                </div>
+              </div>
+
+              <!-- 执行中 -->
+              <div class="flex flex-col min-w-0 rounded-2xl bg-slate-50/50 border border-slate-200/70 overflow-hidden">
+                <div class="px-3 py-2.5 flex items-center gap-2 bg-blue-50/80 border-b border-blue-100/80 shrink-0">
+                  <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+                  </span>
+                  <span class="text-[12.5px] font-bold text-blue-700">执行中</span>
+                  <span class="ml-auto min-w-[20px] h-[20px] px-1.5 rounded-full bg-blue-100 text-blue-700 text-[10.5px] font-bold flex items-center justify-center tabular-nums">{{ kanbanDoing(activeNode).length }}</span>
+                </div>
+                <div class="flex-1 min-h-0 overflow-y-auto slim-scroll p-2">
+                  <transition-group name="kc" tag="div" class="space-y-2">
+                    <div v-for="item in kanbanDoing(activeNode)" :key="item.text"
+                      class="rounded-xl bg-white border border-slate-200/80 shadow-sm p-2.5 flex items-center gap-2 hover:shadow-md transition-shadow">
+                      <span class="flex-1 min-w-0 text-[12.5px] text-slate-700 line-clamp-2">{{ item.text }}</span>
+                      <span class="shrink-0 inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-semibold border" :class="priorityTag(item).cls">{{ priorityTag(item).label }}</span>
+                      <button @click="completeTask(activeNode, item)" title="标记完成"
+                        class="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-md border border-emerald-300 text-emerald-600 bg-emerald-50/50 text-[10.5px] font-semibold hover:bg-emerald-100 hover:border-emerald-400 hover:shadow-sm transition-all">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                        完成
+                      </button>
+                    </div>
+                  </transition-group>
+                  <div v-if="!kanbanDoing(activeNode).length" class="text-center text-[11px] text-slate-300 py-8">暂无执行中任务</div>
+                </div>
+              </div>
+
+              <!-- 待启动 -->
+              <div class="flex flex-col min-w-0 rounded-2xl bg-slate-50/50 border border-slate-200/70 overflow-hidden">
+                <div class="px-3 py-2.5 flex items-center gap-2 bg-orange-50/80 border-b border-orange-100/80 shrink-0">
+                  <span class="w-6 h-6 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </span>
+                  <span class="text-[12.5px] font-bold text-orange-700">待启动</span>
+                  <span class="ml-auto min-w-[20px] h-[20px] px-1.5 rounded-full bg-orange-100 text-orange-700 text-[10.5px] font-bold flex items-center justify-center tabular-nums">{{ kanbanTodo(activeNode).length }}</span>
+                </div>
+                <div class="flex-1 min-h-0 overflow-y-auto slim-scroll p-2">
+                  <transition-group name="kc" tag="div" class="space-y-2">
+                    <div v-for="item in kanbanTodo(activeNode)" :key="item.text"
+                      class="rounded-xl bg-white border border-slate-200/80 shadow-sm p-2.5 flex items-center gap-2 hover:shadow-md transition-shadow">
+                      <span class="flex-1 min-w-0 text-[12.5px] text-slate-700 line-clamp-2">{{ item.text }}</span>
+                      <span class="shrink-0 inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-semibold border" :class="priorityTag(item).cls">{{ priorityTag(item).label }}</span>
+                      <button @click="startTask(activeNode, item)" title="启动任务"
+                        class="shrink-0 inline-flex items-center gap-1 h-[22px] px-2 rounded-md border border-blue-300 text-blue-600 bg-blue-50/50 text-[10.5px] font-semibold hover:bg-blue-100 hover:border-blue-400 hover:shadow-sm transition-all">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.348a1.125 1.125 0 01-1.667-.985V5.653z"/></svg>
+                        启动
+                      </button>
+                    </div>
+                  </transition-group>
+                  <div v-if="!kanbanTodo(activeNode).length" class="text-center text-[11px] text-slate-300 py-8">暂无待启动任务</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+
+      <!-- 调度智能助手（中间栏下方） -->
+      <div v-show="!reportMode" class="shrink-0 px-5 pb-4">
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div @click="assistantOpen = !assistantOpen" class="px-4 py-2.5 flex items-center gap-2 bg-corp-900 border-b border-white/10 cursor-pointer select-none hover:bg-corp-800 transition-colors">
+            <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-300 to-violet-400 flex items-center justify-center shadow-sm shadow-indigo-500/30 ai-breathe">
+              <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+              </svg>
+            </div>
+            <span class="text-[13px] font-bold text-white">调度智能助手</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/15 text-sky-300 font-semibold">AI</span>
+            <span class="ml-auto text-[10.5px] text-slate-300 hidden lg:block">基于当前航次「{{ activeVessel.name }} / {{ activeVessel.voyage }}」上下文</span>
+            <svg :class="['w-4 h-4 text-slate-300 transition-transform shrink-0', assistantOpen ? '' : 'rotate-180']" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </div>
+          <div :class="['flex gap-4 px-4 py-3 assistant-body', assistantOpen ? 'is-open' : 'is-closed']">
+            <!-- 消息 + 输入 -->
+            <div class="flex-1 min-w-0 flex flex-col gap-2">
+              <div ref="chatBox" class="h-[104px] overflow-y-auto slim-scroll space-y-2 pr-1">
+                <div v-for="(msg, i) in chatMessages" :key="i" :class="['flex', msg.role === 'user' ? 'justify-end' : 'justify-start']">
+                  <!-- 用户气泡 -->
+                  <div v-if="msg.role === 'user'" class="max-w-[80%] px-2.5 py-2 text-[11.5px] leading-relaxed whitespace-pre-line bg-corp-900 text-white rounded-xl rounded-br-sm">{{ msg.text }}</div>
+                  <!-- AI 气泡：淡蓝紫渐变 + [AI] 标识 + 结构化状态卡 -->
+                  <div v-else class="max-w-[85%] rounded-xl rounded-bl-sm overflow-hidden bg-gradient-to-br from-indigo-50 to-slate-50 border border-indigo-100/80">
+                    <div class="flex items-center gap-1 px-2.5 pt-1.5 pb-0.5 text-[9.5px] font-bold text-indigo-500 tracking-wide">
+                      <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+                      AI 助手
+                    </div>
+                    <div v-if="msg.card" class="mx-2.5 mb-1.5 px-2 py-1 rounded-md bg-white/70 border-l-[3px] border-indigo-500 text-[10.5px] text-slate-600">{{ msg.card }}</div>
+                    <div class="px-2.5 pb-2 text-[11.5px] leading-relaxed whitespace-pre-line text-slate-700">{{ msg.text }}</div>
+                  </div>
+                </div>
+                <!-- 工具链调用（紧凑版） -->
+                <transition name="tool-call" appear>
+                  <div v-if="toolCalling" class="flex justify-start tool-call-enter-active">
+                  <div class="rounded-xl rounded-bl-sm overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50 border border-indigo-100/80 px-3 py-2.5">
+                    <div class="flex items-center gap-1 text-[10px] text-slate-500 mb-1">
+                      <svg class="w-3 h-3 text-indigo-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      <span class="font-semibold">工具执行中</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-[10px]">
+                      <span v-for="(step, idx) in toolSteps" :key="idx" class="flex items-center gap-0.5">
+                        <span :class="['w-2 h-2 rounded-full', step.status === 'completed' ? 'bg-emerald-400' : step.status === 'running' ? 'bg-indigo-400 animate-pulse' : 'bg-slate-300']"></span>
+                        <span v-if="idx < toolSteps.length - 1" class="text-slate-300">→</span>
+                      </span>
+                    </div>
+                  </div>
+                  </div>
+                </transition>
+                <!-- 普通思考状态 -->
+                <div v-if="!toolCalling && chatTyping" class="flex justify-start">
+                  <div class="rounded-xl rounded-bl-sm overflow-hidden bg-gradient-to-br from-indigo-50 to-slate-50 border border-indigo-100/80 px-3 py-2.5 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:.15s"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:.3s"></span>
+                  </div>
+                </div>
+              </div>
+              <!-- 输入框 + 发送按钮（聚焦/有文本时渐变高亮） -->
+              <div :class="['flex items-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 transition',
+                (chatInput.trim() || chatInputFocused) ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200']">
+                <input v-model="chatInput" @keyup.enter="ask(chatInput)" @focus="chatInputFocused = true" @blur="chatInputFocused = false" type="text" placeholder="输入问题，或点击右侧推荐…"
+                  class="flex-1 min-w-0 text-[11.5px] outline-none bg-transparent placeholder:text-slate-400" />
+                <button @click="ask(chatInput)" title="发送"
+                  :class="['w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all',
+                    (chatInput.trim() || chatInputFocused) ? 'bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/40' : 'bg-slate-300 text-white']">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <!-- 推荐问题 -->
+            <div class="w-[216px] shrink-0 border-l border-slate-100 pl-4 hidden md:flex flex-col gap-1.5">
+              <div class="flex items-center gap-1 text-[10.5px] font-semibold text-slate-400 tracking-wide">
+                <svg class="w-3 h-3 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+                <span class="flex-1">推荐提问</span>
+                <button @click="refreshSuggestions" title="换一换" class="flex items-center gap-0.5 text-indigo-500 hover:text-indigo-600 transition-colors">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h0m0 0a3 3 0 00-3.75-3.75L3 12m13.023-2.652a3 3 0 010 6.652L3 12m0 0l9.523-5.348M3 12l9.523 5.348"/></svg>
+                  换一换
+                </button>
+              </div>
+              <button v-for="q in currentSuggestions" :key="q" @click="ask(q)"
+                class="suggestion-card w-full text-left text-[11px] px-2.5 py-1.5 rounded-lg border border-indigo-100 bg-indigo-50/40 text-indigo-600 leading-snug">
+                {{ q }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+      <!-- ════════ KNOWLEDGE TAB: 调度知识库 ════════ -->
+      <div v-if="activeNav === 'knowledge'" class="flex-1 flex flex-col min-h-0 bg-page">
+        <!-- Breadcrumb bar -->
+        <div class="shrink-0 px-4 py-2.5 flex items-center gap-1 border-b border-slate-200 bg-white overflow-x-auto slim-scroll">
+          <button @click="selectedKbNode = null"
+            class="flex items-center gap-1 px-2 py-1 rounded-lg text-[12px] font-semibold transition-colors shrink-0 whitespace-nowrap"
+            :class="selectedKbNode ? 'text-slate-500 hover:text-corp-700 hover:bg-slate-100' : 'text-corp-700 bg-corp-50'">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/>
+            </svg>
+            知识库
+          </button>
+          <template v-for="(crumb, i) in kbBreadcrumb" :key="crumb.id">
+            <svg class="w-3 h-3 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+            </svg>
+            <button @click="navigateBreadcrumb(i)"
+              :class="['px-2 py-1 rounded-lg text-[12px] font-medium transition-colors shrink-0 truncate max-w-[180px] whitespace-nowrap',
+                i === kbBreadcrumb.length - 1 ? 'text-corp-700 bg-corp-50 font-semibold' : 'text-slate-500 hover:text-corp-700 hover:bg-slate-100']">
+              {{ crumb.label }}
+            </button>
+          </template>
+          <!-- node metadata chip -->
+          <span v-if="selectedKbNode" class="ml-2 shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium flex items-center gap-1">
+            <span>{{ kbFolderStats.count }} 项</span>
+            <span v-if="kbFolderStats.totalSize !== '0 B'" class="text-slate-300">·</span>
+            <span v-if="kbFolderStats.totalSize !== '0 B'">{{ kbFolderStats.totalSize }}</span>
+          </span>
+        </div>
+
+        <!-- Content area -->
+        <div class="flex-1 min-h-0 overflow-y-auto slim-scroll p-4">
+          <!-- Empty: nothing selected -->
+          <div v-if="!selectedKbNode" class="h-full rounded-xl border-2 border-dashed border-slate-200 bg-white/50 flex items-center justify-center">
+            <div class="text-center text-slate-400">
+              <svg class="w-16 h-16 mx-auto mb-4 text-slate-200" fill="none" viewBox="0 0 24 24" stroke-width="0.9" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/>
+              </svg>
+              <p class="text-[14px] font-semibold">请在右侧目录树中选择文件夹浏览</p>
+              <p class="text-[12px] mt-1.5 text-slate-300">点击文件夹可逐级进入查看文件</p>
+            </div>
+          </div>
+
+          <!-- Folder view: grid of child items -->
+          <div v-else-if="kbChildItems.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div v-for="child in kbChildItems" :key="child.id"
+              @click="kbChildIsFolder(child) ? selectKbChild(child) : null"
+              :class="['rounded-xl border bg-white p-3.5 transition-all group flex flex-col gap-2.5',
+                kbChildIsFolder(child) ? 'cursor-pointer hover:border-corp-400 hover:shadow-md hover:bg-gradient-to-br hover:from-corp-50/30 hover:to-white' : 'cursor-default border-slate-200 shadow-sm hover:shadow-md']">
+              <!-- Top: icon + label + ext badge -->
+              <div class="flex items-start gap-3">
+                <span :class="['w-10 h-10 rounded-xl flex items-center justify-center shrink-0', kbItemIconBg(child)]">
+                  <svg class="w-5 h-5" :class="kbItemIconColor(child)" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" v-html="kbItemIconPath(child)"></svg>
+                </span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[13px] font-semibold text-slate-800 leading-snug line-clamp-2">{{ child.label }}</div>
+                  <div v-if="child.desc" class="text-[11px] text-slate-500 mt-0.5 line-clamp-2 leading-snug">{{ child.desc }}</div>
+                </div>
+                <span v-if="child.ext" :class="['text-[9.5px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0', fileExtChip(child.ext)]">{{ child.ext }}</span>
+                <svg v-if="kbChildIsFolder(child)" class="w-4 h-4 text-slate-300 group-hover:text-corp-500 shrink-0 transition-colors" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                </svg>
+              </div>
+              <!-- 船舶参数（内嵌于卡片主体） -->
+              <div v-if="child.params" class="rounded-lg bg-gradient-to-br from-corp-50/40 to-slate-50 border border-corp-200/30 px-3 py-2.5 grid grid-cols-3 gap-x-2 gap-y-1">
+                <div class="text-[10.5px]"><span class="text-slate-400">MMSI</span> <span class="text-slate-700 font-semibold tabular-nums">{{ child.params.mmsi }}</span></div>
+                <div class="text-[10.5px]"><span class="text-slate-400">IMO</span> <span class="text-slate-700 font-semibold tabular-nums">{{ child.params.imo }}</span></div>
+                <div class="text-[10.5px]"><span class="text-slate-400">呼号</span> <span class="text-slate-700 font-semibold">{{ child.params.callSign }}</span></div>
+                <div class="text-[10.5px]"><span class="text-slate-400">载重吨</span> <span class="text-slate-700 font-semibold">{{ child.params.dwt }}</span></div>
+                <div class="text-[10.5px] col-span-2"><span class="text-slate-400">长×宽×深</span> <span class="text-slate-700 font-semibold">{{ child.params.dimensions }}</span></div>
+                <div class="text-[10.5px]"><span class="text-slate-400">建成</span> <span class="text-slate-700 font-semibold">{{ child.params.built }}</span></div>
+                <div class="text-[10.5px]"><span class="text-slate-400">设计吃水</span> <span class="text-slate-700 font-semibold">{{ child.params.draft }}</span></div>
+                <div class="text-[10.5px]"><span class="text-slate-400">满载油耗</span> <span class="text-slate-700 font-semibold">{{ child.params.fuel }}</span></div>
+                <div class="text-[10.5px] col-span-3"><span class="text-slate-400">设计航速</span> <span class="text-slate-700 font-semibold">{{ child.params.speed }}</span></div>
+              </div>
+              <!-- Bottom: meta badges + size + date -->
+              <div class="flex items-center gap-1.5 flex-wrap text-[10.5px]">
+                <span v-if="child.status" :class="statusTagClass(child.status)">{{ child.status }}</span>
+                <span v-if="child.tag" :class="kbTagClass(child)">{{ child.tag }}</span>
+                <span v-if="child.certSummary" :class="child.certSummary.expiring ? 'text-amber-500 font-semibold' : 'text-emerald-500'">{{ child.certSummary.expiring ? child.certSummary.expiring + '项即将到期' : child.certSummary.normal + '项正常' }}</span>
+                <span v-if="!child.ext && !child.status && !child.certSummary && child.children && child.children.length" class="text-slate-400">{{ child.children.length }} 项</span>
+                <span class="flex-1"></span>
+                <span v-if="child.size" class="text-slate-400 tabular-nums shrink-0">{{ child.size }}</span>
+                <span v-if="child.size && child.date" class="text-slate-300 shrink-0">·</span>
+                <span v-if="child.date" class="text-slate-400 shrink-0">{{ child.date }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty folder -->
+          <div v-else class="h-full rounded-xl border-2 border-dashed border-slate-200 bg-white/50 flex items-center justify-center">
+            <div class="text-center text-slate-400">
+              <svg class="w-14 h-14 mx-auto mb-3 text-slate-200" fill="none" viewBox="0 0 24 24" stroke-width="1.2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/>
+              </svg>
+              <p class="text-[13px] font-medium">此文件夹为空</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ ASSISTANT TAB: 智能助手（Doubao 布局） ════════ -->
+      <div v-if="activeNav === 'assistant'" class="flex-1 flex min-h-0 bg-page">
+        <!-- 左侧：对话主体 -->
+        <div class="flex-1 min-w-0 flex flex-col min-h-0">
+          <!-- 顶部 Header -->
+          <div class="shrink-0 px-5 py-3 flex items-center gap-3 bg-white border-b border-slate-200 shadow-sm">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center shadow-md shadow-indigo-500/30 avatar-pulse">
+              <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+              </svg>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[15px] font-bold text-slate-800">调度智能助手</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold shadow-sm">AI</span>
+              </div>
+              <div class="text-[11px] text-slate-400 flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                在线
+              </div>
+            </div>
+            <span class="flex-1"></span>
+            <button @click="chatMessages = [{ role: 'ai', text: '您好，我是调度智能助手。请问有什么可以帮助您的吗？' }]" title="新对话"
+              class="p-2 rounded-xl text-slate-500 hover:text-white hover:bg-gradient-to-r hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg shadow-indigo-500/20 transition-all">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            </button>
+          </div>
+
+          <!-- 对话区 -->
+          <div class="flex-1 min-h-0 overflow-y-auto slim-scroll px-5 py-4 bg-gradient-to-br from-slate-50/50 via-white to-indigo-50/30 chat-scroll">
+            <div class="max-w-[800px] mx-auto space-y-4">
+              <div v-for="(msg, i) in chatMessages" :key="i" :class="['flex', msg.role === 'user' ? 'justify-end' : 'justify-start']">
+                <!-- 用户气泡 -->
+                <div v-if="msg.role === 'user'" class="max-w-[75%] flex items-end justify-end gap-2">
+                  <div class="flex flex-col items-end gap-1">
+                    <div class="text-[10px] text-slate-400 mr-1">您</div>
+                    <div class="px-4 py-3 text-[13px] leading-relaxed whitespace-pre-line bg-corp-900 text-white rounded-2xl rounded-br-md shadow-lg shadow-corp-900/20">{{ msg.text }}</div>
+                  </div>
+                  <div class="w-8 h-8 rounded-full bg-corp-900 flex items-center justify-center shrink-0 shadow-md">
+                    <span class="text-white text-[11px] font-bold">您</span>
+                  </div>
+                </div>
+                <!-- AI气泡 -->
+                <div v-else class="flex gap-3 max-w-[85%]">
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/30">
+                      <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+                    </div>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-[11px] text-slate-500 font-semibold mb-1.5 flex items-center gap-2">
+                      AI 助手
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    </div>
+                    <div v-if="msg.card" class="mb-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 text-[11px] text-indigo-700 font-semibold inline-flex items-center gap-2 shadow-sm">
+                      <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      {{ msg.card }}
+                    </div>
+                    <div class="text-[13.5px] leading-relaxed whitespace-pre-line text-slate-700 bg-white px-4 py-3 rounded-2xl rounded-tl-sm border border-slate-100 shadow-md shadow-slate-200/50">
+                      {{ msg.text }}
+                    </div>
+                    <div class="text-[10px] text-slate-300 mt-1 flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      {{ currentTime() }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- 推荐问题标签：仅在初始问候语时显示，点击直接发送 -->
+              <div v-if="showAssistantSuggestions" class="flex flex-wrap gap-2 mt-1">
+                <button v-for="q in assistantSuggestedQuestions" :key="q" @click="ask(q)"
+                  class="px-3.5 py-2 rounded-xl text-[12px] font-medium bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-600 border border-indigo-200 hover:from-indigo-100 hover:to-blue-100 hover:border-indigo-400 hover:text-indigo-700 transition-all shadow-sm hover:shadow-md cursor-pointer">
+                  {{ q }}
+                </button>
+              </div>
+              <!-- 打字中状态 -->
+              <!-- 工具链调用模拟 -->
+              <transition name="tool-call" appear>
+                <div v-if="toolCalling" class="flex gap-3 tool-call-enter-active">
+                  <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/30">
+                    <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-[11px] text-slate-500 font-semibold mb-1.5 flex items-center gap-2">
+                      AI 助手
+                      <span class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] border border-amber-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                        工具调用中
+                      </span>
+                    </div>
+                    <div class="bg-gradient-to-br from-slate-50 to-indigo-50 border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                      <div class="space-y-2">
+                        <div v-for="(step, idx) in toolSteps" :key="idx" class="flex items-center gap-2 tool-step" :style="{ animationDelay: idx * 0.1 + 's' }" :class="{ 'step-running': step.status === 'running' }">
+                          <!-- 状态图标 -->
+                          <div v-if="step.status === 'pending'" class="w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center shrink-0">
+                            <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                          </div>
+                          <div v-else-if="step.status === 'running'" class="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center shrink-0 animate-pulse shadow-sm shadow-indigo-500/40">
+                            <svg class="w-3 h-3 text-white animate-spin" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                          </div>
+                          <div v-else-if="step.status === 'completed'" class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/30 check-complete">
+                            <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                          </div>
+                          <!-- 工具图标和名称 -->
+                          <div class="flex items-center gap-2 flex-1">
+                            <span class="text-lg">{{ step.icon }}</span>
+                            <span :class="['text-[11px] font-medium', step.status === 'running' ? 'text-indigo-700' : step.status === 'completed' ? 'text-slate-600' : 'text-slate-400']">{{ step.name }}</span>
+                            <!-- 结果提示 -->
+                            <span v-if="step.status === 'completed'" class="text-[10px] text-emerald-600 ml-auto">✓ {{ step.result }}</span>
+                            <span v-else-if="step.status === 'running'" class="text-[10px] text-indigo-500 ml-auto animate-pulse">{{ step.result }}...</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+              <!-- 普通思考状态 -->
+              <div v-if="!toolCalling && chatTyping" class="flex gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/30">
+                  <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <div class="text-[11px] text-slate-500 font-semibold">AI 助手</div>
+                  <div class="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white border border-slate-100 shadow-md shadow-slate-200/50">
+                    <span class="w-2 h-2 rounded-full bg-indigo-400 animate-bounce"></span>
+                    <span class="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:.15s"></span>
+                    <span class="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:.3s"></span>
+                    <span class="text-[11px] text-slate-400 ml-2">正在思考中</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 输入区 -->
+          <div class="shrink-0 px-5 pb-5 pt-3 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+            <div class="max-w-[800px] mx-auto">
+              <div :class="['flex items-center gap-2 rounded-2xl border bg-slate-50/70 px-4 py-3 transition-all',
+                (chatInput.trim() || chatInputFocused) ? 'border-indigo-400 ring-2 ring-indigo-100 bg-white shadow-xl shadow-indigo-500/10 scale-[1.01]' : 'border-slate-200 hover:border-slate-300']">
+                <button class="p-2 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 transition-colors">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.827 2.827l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                </button>
+                <input v-model="chatInput" @keyup.enter="ask(chatInput)" @focus="chatInputFocused = true" @blur="chatInputFocused = false" type="text"
+                  placeholder="输入您的调度相关问题，例如：惠盛海22航次进度如何？"
+                  class="flex-1 min-w-0 text-[14px] outline-none bg-transparent placeholder:text-slate-400 placeholder:font-light" />
+                <button @click="ask(chatInput)" title="发送"
+                  :class="['w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all',
+                    (chatInput.trim() || chatInputFocused) ? 'bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95' : 'bg-slate-300 text-white cursor-not-allowed']">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 mt-3">
+                <span class="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  快捷提问
+                </span>
+                <button v-for="q in quickPrompts" :key="q" @click="ask(q)"
+                  class="px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:border-indigo-300 hover:text-indigo-600 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50 transition-all text-[11.5px] shadow-sm hover:shadow-md">
+                  {{ q.length > 18 ? q.substring(0,17) + '…' : q }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：Chat 历史 -->
+        <div class="w-[280px] shrink-0 border-l border-slate-200 bg-white flex flex-col min-h-0 shadow-[4px_0_20px_rgba(0,0,0,0.03)]">
+          <!-- 历史记录头部 -->
+          <div class="px-5 pt-5 pb-3 shrink-0 flex items-center justify-between bg-gradient-to-br from-slate-50 to-white border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h2 class="text-[14px] font-bold text-slate-800">对话历史</h2>
+            </div>
+            <div class="flex items-center gap-1">
+              <button @click="chatMessages = [{ role: 'ai', text: '您好，我是调度智能助手。请问有什么可以帮助您的吗？' }]" title="新对话" class="p-1.5 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              </button>
+              <button @click="chatHistory = []" title="清空" class="p-1.5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- 搜索框 -->
+          <div class="px-4 py-3 shrink-0 border-b border-slate-100">
+            <div class="relative">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input type="text" placeholder="搜索历史对话..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-[12px] text-slate-600 focus:outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-400">
+            </div>
+          </div>
+
+          <!-- 历史列表 -->
+          <div class="flex-1 overflow-y-auto slim-scroll px-4 pb-4">
+            <template v-for="(group, gidx) in groupedHistory" :key="gidx">
+              <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 mt-3 px-1 flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                {{ group.date }}
+              </div>
+              <button v-for="h in group.items" :key="h.id" @click="loadHistoryChat(h)"
+                :class="['w-full text-left px-3 py-2.5 rounded-xl mb-1.5 transition-all border group',
+                  historyActiveId === h.id ? 'history-item-active shadow-sm' : 'hover:bg-slate-50 border-transparent']">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span v-if="h && h.pinned" class="text-amber-400 shrink-0">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 4l2 2-2.5 2.5L18 14l-4-1-5 5-1-4 5-5-1-4 5.5 2.5L16 4z"/></svg>
+                      </span>
+                      <span :class="['text-[12.5px] font-semibold truncate', historyActiveId === h.id ? 'text-indigo-700' : 'text-slate-700']">{{ h.title }}</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-1 truncate leading-relaxed">{{ h.preview }}</div>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between mt-1.5">
+                  <div class="flex items-center gap-1 text-[10px] text-slate-300">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {{ h.time }}
+                  </div>
+                  <button @click.stop="togglePin(h)" class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100 text-slate-300 hover:text-amber-400 transition-all">
+                    <svg class="w-3.5 h-3.5" :fill="h && h.pinned ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+                  </button>
+                </div>
+              </button>
+            </template>
+            <div v-if="!chatHistory.length" class="text-center py-10">
+              <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+              </div>
+              <div class="text-[12px] text-slate-400">暂无历史对话</div>
+              <div class="text-[10.5px] text-slate-300 mt-1">开始对话后会自动保存</div>
+            </div>
+          </div>
+
+          <!-- 底部信息 -->
+          <div class="shrink-0 px-4 py-3 border-t border-slate-100 bg-slate-50/70">
+            <div class="flex items-center justify-between text-[10px] text-slate-400">
+              <div class="flex items-center gap-1">
+                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                数据安全加密
+              </div>
+              <span>v2.0.0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <!-- ════════ 5. RIGHT PANEL — 知识资源库 (20%) ════════ -->
+    <aside v-show="(activeNav === 'checklist' || activeNav === 'knowledge') && !reportMode" class="w-[20%] min-w-[220px] shrink-0 border-l border-slate-200 bg-white flex flex-col min-h-0">
+      <div class="px-4 pt-4 pb-3 shrink-0 flex items-center justify-between">
+        <h2 class="text-[14px] font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-1 h-4 rounded-full bg-corp-600"></span>知识资源库
+        </h2>
+        <span class="text-[10.5px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">共 {{ totalFileCount }} 份</span>
+      </div>
+
+      <!-- Tree Content -->
+      <div class="flex-1 overflow-y-auto slim-scroll px-2 pb-3">
+        <!-- ═══ 一级: 分类目录 ═══ -->
+        <div v-for="cat in knowledgeTree" :key="cat.id" class="mb-1">
+
+          <!-- 一级行: 分类标题 -->
+          <button @click="toggleAndSelectKb(cat)"
+            class="tree-row w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-slate-50"
+            :class="cat.open ? 'bg-slate-50' : ''">
+            <span :class="['w-7 h-7 rounded-lg flex items-center justify-center shrink-0', cat.iconBg]">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" v-html="cat.iconPath"></svg>
+            </span>
+            <span class="flex-1 text-[13px] font-semibold text-slate-800 truncate">{{ cat.label }}</span>
+            <span class="text-[10.5px] text-slate-400 font-medium tabular-nums shrink-0">{{ cat.count }}</span>
+            <svg :class="['w-4 h-4 text-slate-300 shrink-0 transition-transform duration-300', cat.open ? 'rotate-90' : '']"
+              fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+
+          <!-- ═══ 子级展开区 ═══ -->
+          <transition name="tree-children">
+            <div v-if="cat.open" class="ml-4 pl-3 border-l-2 border-slate-100">
+
+              <!-- ────── 船舶档案: 船舶 → 证书 ────── -->
+              <template v-if="cat.type === 'ship-archive'">
+                <div v-for="ship in cat.children" :key="ship.id" class="mb-0.5">
+
+                  <!-- 二级行: 船舶名称 -->
+                  <button @click="toggleAndSelectKb(ship)"
+                    class="tree-row w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left">
+                    <svg :class="['w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-300', ship.open ? 'rotate-90' : '']"
+                      fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                    <svg class="w-4 h-4 text-corp-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />
+                    </svg>
+                    <span class="flex-1 text-[12px] font-semibold text-slate-700 truncate">{{ ship.label }}</span>
+                    <span v-if="ship.certSummary" class="text-[9.5px] font-medium shrink-0"
+                      :class="ship.certSummary.expiring ? 'text-amber-500' : 'text-emerald-500'">
+                      {{ ship.certSummary.expiring ? ship.certSummary.expiring + '项即将到期' : ship.certSummary.normal + '项正常' }}
+                    </span>
+                  </button>
+
+                  <!-- 三级: 证书列表 -->
+                  <transition name="tree-children">
+                    <div v-if="ship.open" class="ml-4 pl-3 border-l border-slate-100 space-y-px">
+                      <div v-for="cert in ship.children" :key="cert.id"
+                        class="tree-row flex items-center gap-2 px-2 py-1.5 rounded-md group/cert cursor-pointer"
+                        @click="selectKbLeaf(cert)">
+                        <span class="w-5 h-5 rounded flex items-center justify-center shrink-0 bg-red-50">
+                          <svg class="w-3 h-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                          </svg>
+                        </span>
+                        <span class="flex-1 text-[11.5px] text-slate-600 truncate group-hover/cert:text-slate-800">{{ cert.label }}</span>
+                        <span :class="statusTagClass(cert.status)" class="shrink-0">{{ cert.status }}</span>
+                      </div>
+                    </div>
+                  </transition>
+                </div>
+              </template>
+
+              <!-- ────── 航次档案: 船 → 航次 → 单证文件 ────── -->
+              <template v-if="cat.type === 'voyage-archive'">
+                <div v-for="vaship in cat.children" :key="vaship.id" class="mb-0.5">
+
+                  <!-- 二级行: 船舶名称 -->
+                  <button @click="toggleAndSelectKb(vaship)"
+                    class="tree-row w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left">
+                    <svg :class="['w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-300', vaship.open ? 'rotate-90' : '']"
+                      fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                    <svg class="w-4 h-4 text-corp-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />
+                    </svg>
+                    <span class="flex-1 text-[12px] font-semibold text-slate-700 truncate">{{ vaship.label }}</span>
+                    <span class="text-[10px] text-slate-400">{{ vaship.children.length }} 航次</span>
+                  </button>
+
+                  <!-- 三级: 航次 → 单证文件 -->
+                  <transition name="tree-children">
+                    <div v-if="vaship.open" class="ml-4 pl-3 border-l border-slate-100 space-y-px">
+                      <div v-for="voy in vaship.children" :key="voy.id">
+                        <button @click="toggleAndSelectKb(voy)"
+                          class="tree-row w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md">
+                          <svg :class="['w-3 h-3 text-slate-400 shrink-0 transition-transform duration-300', voy.open ? 'rotate-90' : '']"
+                            fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                          <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                          </svg>
+                          <span class="flex-1 text-left text-[11.5px] font-medium text-slate-700">{{ voy.label }}</span>
+                          <span v-if="voy.tag" :class="voyStatusTagClass(voy.tag)" class="shrink-0">{{ voy.tag }}</span>
+                        </button>
+
+                        <!-- 四级: 单证文件（按 docType 显示不同图标） -->
+                        <transition name="tree-children">
+                          <div v-if="voy.open" class="ml-[13px] pl-3 border-l border-slate-100 space-y-px">
+                            <div v-for="doc in voy.children" :key="doc.id"
+                              class="tree-row flex items-center gap-2 px-2 py-1.5 rounded-md group/doc cursor-pointer"
+                              @click="selectKbLeaf(doc)">
+                              <span v-if="doc.docType === 'bl'" class="w-5 h-5 rounded flex items-center justify-center shrink-0 bg-blue-50">
+                                <svg class="w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                              </span>
+                              <span v-else-if="doc.docType === 'stowage'" class="w-5 h-5 rounded flex items-center justify-center shrink-0 bg-emerald-50">
+                                <svg class="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                                </svg>
+                              </span>
+                              <span v-else-if="doc.docType === 'sof'" class="w-5 h-5 rounded flex items-center justify-center shrink-0 bg-amber-50">
+                                <svg class="w-3 h-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                                </svg>
+                              </span>
+                              <span v-else :class="['w-5 h-5 rounded flex items-center justify-center shrink-0', fileIconBg(doc.ext)]">
+                                <svg class="w-3 h-3" :class="fileIconColor(doc.ext)" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                              </span>
+                              <span class="flex-1 text-[11.5px] text-slate-600 truncate group-hover/doc:text-slate-800">{{ doc.label }}</span>
+                              <span :class="['text-[9px] font-bold uppercase shrink-0 px-1.5 py-0.5 rounded', fileExtChip(doc.ext)]">{{ doc.ext }}</span>
+                            </div>
+                          </div>
+                        </transition>
+                      </div>
+                    </div>
+                  </transition>
+                </div>
+              </template>
+
+              <!-- ────── 港口资料: 船 → 航次 → 港口 → 文件 ────── -->
+              <template v-if="cat.type === 'port-data'">
+                <div v-for="pship in cat.children" :key="pship.id" class="mb-0.5">
+
+                  <!-- 三级行: 船舶名称 -->
+                  <button @click="toggleAndSelectKb(pship)"
+                    class="tree-row w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left">
+                    <svg :class="['w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-300', pship.open ? 'rotate-90' : '']"
+                      fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                    <svg class="w-4 h-4 text-corp-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />
+                    </svg>
+                    <span class="flex-1 text-[12px] font-semibold text-slate-700 truncate">{{ pship.label }}</span>
+                    <span class="text-[10px] text-slate-400">{{ pship.children.length }} 航次</span>
+                  </button>
+
+                  <!-- 四级: 航次 → 港口 → 文件 -->
+                  <transition name="tree-children">
+                    <div v-if="pship.open" class="ml-4 pl-3 border-l border-slate-100 space-y-px">
+                      <div v-for="pvoy in pship.children" :key="pvoy.id">
+                        <button @click="toggleAndSelectKb(pvoy)"
+                          class="tree-row w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md">
+                          <svg :class="['w-3 h-3 text-slate-400 shrink-0 transition-transform duration-300', pvoy.open ? 'rotate-90' : '']"
+                            fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                          <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                          </svg>
+                          <span class="flex-1 text-left text-[11.5px] font-medium text-slate-700">{{ pvoy.label }}</span>
+                          <span v-if="pvoy.tag" :class="voyStatusTagClass(pvoy.tag)" class="shrink-0">{{ pvoy.tag }}</span>
+                        </button>
+
+                        <!-- 港口 → 文件 -->
+                        <transition name="tree-children">
+                          <div v-if="pvoy.open" class="ml-[13px] pl-3 border-l border-slate-100 space-y-px">
+                            <div v-for="port in pvoy.children" :key="port.id">
+                              <button @click="toggleAndSelectKb(port)"
+                                class="tree-row w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md">
+                                <svg :class="['w-3 h-3 text-slate-400 shrink-0 transition-transform duration-300', port.open ? 'rotate-90' : '']"
+                                  fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                </svg>
+                                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                                </svg>
+                                <span class="flex-1 text-left text-[11.5px] font-medium text-slate-700">{{ port.label }}</span>
+                                <span :class="portTagClass(port.tag)" class="shrink-0">{{ port.tag }}</span>
+                              </button>
+
+                              <!-- 港口文件 -->
+                              <transition name="tree-children">
+                                <div v-if="port.open" class="ml-[13px] pl-3 border-l border-slate-100 space-y-px">
+                                  <div v-for="pf in port.children" :key="pf.id"
+                                    class="tree-row flex items-center gap-1.5 px-2 py-[5px] rounded-md group/pf cursor-pointer"
+                                    @click="selectKbLeaf(pf)">
+                                    <span :class="['w-5 h-5 rounded flex items-center justify-center shrink-0', fileIconBg(pf.ext)]">
+                                      <svg class="w-3 h-3" :class="fileIconColor(pf.ext)" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                      </svg>
+                                    </span>
+                                    <span class="flex-1 text-left text-[11px] text-slate-500 truncate group-hover/pf:text-corp-700">{{ pf.label }}</span>
+                                    <span :class="['text-[9px] font-bold uppercase shrink-0 px-1.5 py-0.5 rounded', fileExtChip(pf.ext)]">{{ pf.ext }}</span>
+                                  </div>
+                                </div>
+                              </transition>
+                            </div>
+                          </div>
+                        </transition>
+                      </div>
+                    </div>
+                  </transition>
+                </div>
+              </template>
+
+            </div>
+          </transition>
+        </div>
+
+        <!-- ═══ 其他静态资源 ═══ -->
+        <div v-for="res in staticResources" :key="res.id"
+          class="tree-row flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer mb-0.5 hover:bg-slate-50 transition-colors"
+          @click="selectKbLeaf(res)">
+          <span :class="['w-7 h-7 rounded-lg flex items-center justify-center shrink-0', res.iconBg]">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" v-html="res.iconPath"></svg>
+          </span>
+          <span class="flex-1 text-[13px] font-medium text-slate-700">{{ res.label }}</span>
+          <span class="text-[10.5px] text-slate-400 tabular-nums">{{ res.count }}</span>
+          <svg class="w-4 h-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ══════════════ 6. BOTTOM STATUS BAR ══════════════ -->
+  <footer v-show="activeNav === 'checklist' && !reportMode" class="h-11 shrink-0 bg-white border-t border-slate-200 flex items-center px-5 gap-6 z-20 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+    <!-- Left: white stats -->
+    <div class="flex items-center gap-5">
+      <!-- 未完航次：告警数 / 总数 -->
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-corp-600"></span>
+        <span class="text-[12px] text-slate-500">未完航次</span>
+        <span class="text-[14px] font-extrabold tabular-nums">
+          <span class="text-[#ff4d4f]">{{ footerStats.unfinished.alert }}</span><span class="text-slate-400">/</span><span class="text-slate-800">{{ footerStats.unfinished.total }}</span>
+        </span>
+      </div>
+      <div class="w-px h-4 bg-slate-200"></div>
+      <!-- 今日待办（含子项） -->
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+        <span class="text-[12px] text-slate-500">今日待办</span>
+        <span class="text-[14px] font-extrabold text-slate-800 tabular-nums">{{ footerStats.todo }}</span>
+        <span class="flex items-center gap-2.5 ml-1 pl-2.5 border-l border-slate-200 text-[11px]">
+          <span class="text-slate-500">月结专项 <b class="text-slate-800 tabular-nums">{{ footerStats.monthly.count }}</b></span>
+          <span class="text-slate-500">港口优惠 <b class="text-slate-800 tabular-nums">{{ footerStats.portDiscount.count }}</b></span>
+          <span class="text-slate-500">运河折扣 <b class="text-slate-800 tabular-nums">{{ footerStats.canalDiscount.count }}</b></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="flex-1"></div>
+
+    <!-- Right: blue chips -->
+    <div class="flex items-center gap-2.5">
+      <button v-for="chip in statusChips" :key="chip.label"
+        class="flex items-center gap-1.5 h-7 pl-2.5 pr-3 rounded-full bg-corp-900 hover:bg-corp-700 transition-colors text-white shadow-sm">
+        <span v-html="chip.svg" class="opacity-80"></span>
+        <span class="text-[11.5px] font-medium">{{ chip.label }}</span>
+        <span class="min-w-[18px] h-[18px] px-1 rounded-full bg-white/20 text-[10.5px] font-bold flex items-center justify-center tabular-nums">{{ chip.count }}</span>
+      </button>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+const { createApp } = Vue
+
+const icon = (path) => `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">${path}</svg>`
+const smallIcon = (path, cls = 'w-3.5 h-3.5') => `<svg class="${cls}" fill="none" viewBox="0 0 24 24" stroke-width="1.9" stroke="currentColor">${path}</svg>`
+
+createApp({
+  data() {
+    return {
+      activeNav: 'checklist',
+      sofPreviewOpen: true,  // SOF 预览面板展开/收起,
+      /* ── 智能助手 Tab：Chat 历史 ── */
+      chatHistory: [
+        { id: 1, title: '装货进度查询', date: '今天', time: '14:30', preview: '当前3号舱正在装货，进度正常…', pinned: true },
+        { id: 2, title: 'SOF 数据核对', date: '今天', time: '11:15', preview: '已核对前5条记录，与提单一致…', pinned: false },
+        { id: 3, title: '滞期费估算', date: '今天', time: '09:40', preview: '按当前速率预计无滞期…', pinned: false },
+        { id: 4, title: '港口费率查询', date: '昨天', time: '16:20', preview: 'SHANGHAI 港使费预估已更新…', pinned: false },
+        { id: 5, title: '提单草稿核对', date: '昨天', time: '14:00', preview: '收货人信息需确认，已标记…', pinned: false },
+        { id: 6, title: '配载图确认', date: '昨天', time: '10:30', preview: 'Stowage Plan v2 已上传…', pinned: false },
+        { id: 7, title: '船期更新通知', date: '前天', time: '15:00', preview: '预计抵港时间无变化…', pinned: false },
+      ],
+      historyActiveId: null,
+      // 快捷操作
+      quickActions: [
+        { icon: 'file', label: 'BAO NING LING 150 航次 有哪些文件？', color: 'from-blue-500 to-indigo-500' },
+        { icon: 'port', label: '这一航次涉及哪些港口优惠？', color: 'from-amber-500 to-orange-500' },
+        { icon: 'progress', label: '目前测算1.0水平是多少？', color: 'from-emerald-500 to-teal-500' },
+        { icon: 'todo', label: '这一航次需要过巴拿马运河怎么办？', color: 'from-violet-500 to-purple-500' },
+      ],
+      /* ────────── */
+      navItems: [
+        { id: 'checklist',  label: 'CHECKLIST',       type: 'tab' },
+        { id: 'bms',        label: 'BMS',              type: 'link', href: 'http://bms.ibulk.coscoshipping.com/' },
+        { id: 'knowledge',  label: '调度知识库',    type: 'tab' },
+        { id: 'assistant',  label: '智能助手',          type: 'tab' },
+      ],
+
+      loading: true,        // 骨架屏
+      animated: false,      // 进度条动效开关（挂载后从 0 增长）
+      displayPercent: 0,    // 总进度数字滚动
+      reportMode: false,    // 全屏显示
+      assistantOpen: true,  // 调度智能助手展开 / 收起
+      topCollapsed: false,  // 顶部导航区收起 / 展开
+      activeNodeId: 3,      // Step-Tab 当前选中节点
+      selectedKbNode: null, // 知识库：当前选中节点 { node, path[] }
+
+      sideIcons: [
+        { name: '工作台', svg: icon('<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />') },
+        { name: '船舶', svg: icon('<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />') },
+        { name: '航次', svg: icon('<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />') },
+        { name: '文档', svg: icon('<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />') },
+        { name: '统计', svg: icon('<path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />') },
+      ],
+
+      vessels: [
+        { name: 'BAO NING LING', voyage: '150', status: '执行中', route: 'SHANGHAI → GHENT-BEGHE', active: true, progress: 45, stage: 3, pinned: true },
+        { name: 'SHI LONG LING', voyage: '138', status: '待启航', route: 'MASAN-KRMAS → NEW ORLEANS-USNOL', active: false, progress: 12, stage: 1, pinned: false },
+        { name: 'SHAN HU HAI', voyage: '104', status: '待卸货', route: 'NANTONG → NAPLES-ITNAP', active: false, progress: 78, stage: 5, pinned: false },
+        { name: 'HU PO HAI', voyage: '95', status: '航行中', route: 'DALIAN -> SINGAPORE-SGSIN', active: false, progress: 58, stage: 4, pinned: false },
+        { name: 'LV SONG HAI', voyage: '83', status: '待启航', route: 'GUANGZHOU -> MANILA-PHMNL', active: false, progress: 10, stage: 1, pinned: false },
+        { name: 'LAN BAO HAI', voyage: '91', status: '航行中', route: 'QINGDAO -> BUSAN-KRPUS', active: false, progress: 62, stage: 4, pinned: false },
+        { name: 'JIAN GUO HAI', voyage: '88', status: '待卸货', route: 'TIANJIN -> HAMBURG-DEHAM', active: false, progress: 72, stage: 5, pinned: false },
+        { name: 'XIU YU HAI', voyage: '77', status: '航行中', route: 'SHANGHAI -> VANCOUVER-CAVAN', active: false, progress: 55, stage: 4, pinned: false },
+        { name: 'JIU FENG LING', voyage: '122', status: '待启航', route: 'NINGBO -> HOUSTON-USHOU', active: false, progress: 8, stage: 1, pinned: false },
+        { name: 'ZHEN ZHU HAI', voyage: '102', status: '航行中', route: 'SHANGHAI -> ROTTERDAM-NLRTM', active: false, progress: 65, stage: 4, pinned: true },
+      ],
+      flatLimit: 5, // 节点卡片默认展示条数
+
+      // ── 6 节点 CHECKLIST ──
+      nodes: [
+        {
+          id: 1, title: '前期部署', status: 'done', grouped: false, expanded: false,
+          items: [
+            '了解合同', '航线规划', 'BMS 布港', '联系船东', '联系船长',
+            '收集船舶资料', '确认货物适装性', '评估滞速条款', '投保租家责任险 / 战区加保',
+          ].map(t => ({ text: t })),
+        },
+        {
+          id: 2, title: '航行监控', status: 'done', grouped: false, expanded: false,
+          items: ['航程监控', '航速油耗监控'].map(t => ({ text: t })),
+        },
+        {
+          id: 3, title: '装港作业', status: 'active', grouped: true, expanded: false,
+          items: [
+            // 高
+            { text: '委托代理', level: 'high', done: true },
+            { text: '与船长确认配载', level: 'high', done: true },
+            { text: '录入使费预估', level: 'high', done: true },
+            { text: '申请港口优惠', level: 'high', done: false, doing: true },
+            { text: 'LAYCAN MISS 风险评估', level: 'high', done: false },
+            { text: '监控洗舱验舱', level: 'high', done: false, doing: true },
+            { text: '提单签发', level: 'high', done: false },
+            // 中
+            { text: '审核使费预估', level: 'mid', done: true },
+            { text: '指导船长递交 NOR', level: 'mid', done: true },
+            { text: '装货监控', level: 'mid', done: false, doing: true },
+            { text: 'SOF 事实记录签署', level: 'mid', done: false },
+            { text: '2.0 数据录入', level: 'mid', done: false },
+            { text: '运费催收', level: 'mid', done: false },
+            // 低
+            { text: '获取港口资料', level: 'low', done: true },
+            { text: '租家确认后宣载', level: 'low', done: false },
+            { text: '了解港口作业方式 / 靠泊计划', level: 'low', done: false },
+            { text: '争议备忘录', level: 'low', done: false },
+          ],
+        },
+        {
+          id: 4, title: '航行监控', status: 'pending', grouped: false, expanded: false,
+          items: ['航程监控', '航速油耗监控', '货物管控提醒', '货损提醒'].map(t => ({ text: t })),
+        },
+        {
+          id: 5, title: '卸港作业', status: 'pending', grouped: false, expanded: false,
+          items: [
+            '委托代理', '港使费', '运费收款', '指导船长递交 NOR', '放货指令',
+            '发送还船通知', '安排船还船检验', '卸港 SOF 签署', '争议备忘录',
+          ].map(t => ({ text: t })),
+        },
+        {
+          id: 6, title: '航次总结', status: 'pending', grouped: false, expanded: false,
+          items: ['结束航次，录入 4.0', '碳税登记及购买申请', '航次归档', '航次总结'].map(t => ({ text: t })),
+        },
+      ],
+
+      // 优先级标签配色（轻量柔和）
+      priorityGroups: [
+        { key: 'high', label: '高', dot: 'bg-red-400',    headerClass: 'bg-red-50 text-red-600',      tagClass: 'bg-red-50 text-red-600 border border-red-200' },
+        { key: 'mid',  label: '中', dot: 'bg-amber-300',  headerClass: 'bg-amber-50 text-amber-700',   tagClass: 'bg-amber-50 text-amber-600 border border-amber-200' },
+        { key: 'low',  label: '低', dot: 'bg-sky-300',    headerClass: 'bg-sky-50 text-sky-600',       tagClass: 'bg-sky-50 text-sky-600 border border-sky-200' },
+      ],
+
+      // ── 智能助手对话 ──
+      chatInput: '',
+      chatInputFocused: false,
+      chatTyping: false,
+      sourcesOpen: false,
+      toolCalling: false,
+      currentToolStep: 0,
+      toolSteps: [],
+      dataSources: [
+        { name: '航次系统日志', meta: '实时同步 · 最近 2 分钟前' },
+        { name: '装港作业 CHECKLIST', meta: '7/17 已完成 · 4 项进行中' },
+        { name: '港口状态接口', meta: 'SHANGHAI · 泊位占用 62%' },
+        { name: '费用流程台账', meta: '使费预估已录入 · 待审核' },
+        { name: '船舶资料库', meta: 'BAO NING LING · 技术档案' },
+      ],
+      chatMessages: [
+        { role: 'ai', card: '装港作业 · 7/17 已完成', text: '您好，我是调度智能助手。\n当前「BAO NING LING / 150」处于装港作业节点（7/17 已完成）。有什么可以帮您？' },
+      ],
+      suggestedQuestions: [
+        'BAO NING LING 150 航次 有哪些文件？',
+        '这一航次需要过巴拿马运河怎么办？',
+        '目前测算1.0水平是多少？',
+        '这一航次涉及哪些港口优惠？',
+      ],
+      assistantSuggestedQuestions: [
+        '查询唐山港资料',
+        '惠盛海22航次的航线和抵离港时间',
+        'DONGJIAKOU 到 BOFFA的里程是多少',
+        '如何接管船，显示到"我的船舶"工作台',
+        '天津港有哪些港口优惠协议',
+        '打开船舶报文查询界面',
+      ],
+      quickPrompts: [
+        '递交NOR的注意事项',
+        '月结时BMS里要做哪些操作',
+        '测算中的固定成本是如何计算的',
+      ],
+      chatAnswers: {
+        'BAO NING LING 150 航次 有哪些文件？': 'BAO NING LING 150 航次当前包含以下文件：\n① 提单 (Bill of Lading) - 已上传\n② 配载图 (Stowage Plan) - v2 版本\n③ SOF 事实记录表 - 7 条记录\n④ 港口资料 - SHANGHAI / GHENT\n其他相关文件可在右侧「知识资源库 → 航次档案」中查看。',
+        '这一航次需要过巴拿马运河怎么办？': '过巴拿马运河操作指南：\n① 提前 72 小时向代理提交运河预约申请\n② 确认船舶吃水和吨位符合运河要求\n③ 准备好船舶证书和相关文件\n④ 协调好引航员和拖轮安排\n当前航次暂未规划过巴拿马运河，如有需要请联系调度主管。',
+        '目前测算1.0水平是多少？': '航次基础数据 (Voyage Overview)\n船名：M/V BAO NING LING（宝宁岭号）\n航次号：VOY-150\n总时长 (Total Duration)：35.0 天\n停租时间（原船东）：1.5 天\n实际计租天数 (Effective Days)：35.0 - 1.5 = 33.5 天\n净日固定成本：$8,500 / 天\n\n📊 核心 KPIs 汇总表\n指标名称数值 (USD)单位说明\n总收入 (Total Revenue)$520,000.00租金收入 + 变动收入\n总支出 (Total Expense)$227,250.00燃油 + 港口 + 佣金等\n毛利润 (Gross Profit)$292,750.00总收入 - 总支出\n期租水平 (TC Level)$8,738.81USD / 天 (按33.5天计算)\n期租水平（含佣金）$9,365.67USD / 天 (按33.5天计算)\n净盈亏 (Net Profit)$87,500.00扣除日固定成本后的纯利润\n日盈亏 (Daily Profit)$2,611.94USD / 天\n\n💡 关键业务提示：\n\n本航次由于 1.5 天的原船东停租，使计租天数减少至33.5天，从而拉高了单位天数的期租水平与日盈亏计算分母。\n\n燃油价差产生的 +$3,200 盈余已成功并入燃油费核算，降低了整体航次成本开支。\n\n📐 BMS系统公式说明：\n① 期租水平 = 毛利润 / (总航期 - 停租时间)\n② 毛利润 = 总收入 - 总支出\n③ 总收入 = 租金收入 + BB收入 + 变动收入\n④ 总支出 = 佣金 + 燃油费 + 港口使费 + BB支出 + 变动支出\n⑤ 租金收入 = ∑(日租金×租期) - ∑停租现船东租金 - ∑停租现船东费用\n⑥ 燃油费 = ∑(耗油量×油价) + 燃油价差',
+        '这一航次涉及哪些港口优惠？': 'BAO NING LING 150 航次涉及的港口优惠：\n① SHANGHAI - 靠泊优惠 5%\n② GHENT - 滞期费折扣 10%\n③ 备选 ANTWERP - 有长期协议价\n优惠申请状态：SHANGHAI 已提交，GHENT 待确认。',
+      },
+      chatDefaultAnswer: '已收到您的问题。我可以协助查询航次进度、CHECKLIST 待办、港口资料与费用预估等，您也可以点击下方推荐问题快速提问。',
+      chatCards: {
+        'BAO NING LING 150 航次 有哪些文件？': '航次档案 · 5 份文件',
+        '这一航次需要过巴拿马运河怎么办？': '运河操作指南',
+        '目前测算1.0水平是多少？': 'USD 87.50/天',
+        '这一航次涉及哪些港口优惠？': '3 项优惠可用',
+      },
+      chatDefaultCard: '已检索相关数据',
+      /* ── 知识库 Tab 专用：SOF / 单证相关 ── */
+      knowledgeSuggestedQuestions: [
+        'SOF 中有哪些待确认事项？',
+        '当前装货进度是否有异常？',
+        '如何核对 SOF 与提单数据？',
+        '装港滞期费如何计算？',
+        '提单签发前需要核对哪些内容？',
+      ],
+      knowledgeChatAnswers: {
+        'SOF 中有哪些待确认事项？': '根据当前 SOF 记录：\\n① 07-16 13:30 预计恢复装货（待确认）\\n② 3/4 号舱装货进度需追踪\\n③ 暂无滞期风险，当前效率正常\\n建议：每小时刷新一次装货进度。',
+        '当前装货进度是否有异常？': '目前进度正常：\\n• 1号舱：已完成\\n• 2号舱：已完成（3,200 吨）\\n• 3号舱：进行中\\n• 4号舱：待开始\\n预计按计划完成，无延误风险。',
+        '如何核对 SOF 与提单数据？': '核对要点：\\n① 装货数量（SOF 记录 vs 提单记载）\\n② 时间线一致性（NOR 递交时间、开工/完工时间）\\n③ 天气/停工记录是否影响 LAYCAN\\n④ 备注栏异常事件的处置闭环',
+        '装港滞期费如何计算？': '滞期费 = 滞期费率 × 滞期时间\\n① 合同约定的装卸速率（吨/天）\\n② SOF 记录的实际作业时间\\n③ 扣除合同约定的免责时间\\n当前航次费率参考：USD 12,000/天（或按比例）',
+        '提单签发前需要核对哪些内容？': '提单核对清单：\\n① 托运人/收货人/通知方信息\\n② 货物品名、数量、重量与 SOF 一致\\n③ 装港/卸港准确无误\\n④ 运费条款（预付/到付）\\n⑤ 提单日期不得早于装货完成日期',
+      },
+      knowledgeChatCards: {
+        'SOF 中有哪些待确认事项？': '1 项待确认 · 进度正常',
+        '当前装货进度是否有异常？': '2 舱完成 · 1 舱进行中',
+        '如何核对 SOF 与提单数据？': '5 项核对要点',
+        '装港滞期费如何计算？': '费率约 USD 12,000/天',
+        '提单签发前需要核对哪些内容？': '5 项必核清单',
+      },
+      knowledgeChatDefaultAnswer: '已检索 SOF 记录与相关单证。我可以帮您分析装货进度、核对数据一致性、计算滞期费，或解答其他单证相关问题。',
+      knowledgeChatDefaultCard: 'SOF · 7 条记录 · 3 已确认',
+      /* ── 知识库 Tab 数据源 ── */
+      knowledgeDataSources: [
+        { name: 'SOF 事实记录表', meta: 'BAO NING LING / 150 · 7 条记录' },
+        { name: '提单草稿', meta: '待签发 · 已核对 3/5 项' },
+        { name: '配载图', meta: 'Stowage Plan v2 · 已上传' },
+        { name: '港口信息接口', meta: 'SHANGHAI · 泊位占用 62%' },
+        { name: '费用流程台账', meta: '使费预估 · 待审核' },
+      ],
+
+      /* ────────── 知识资源库树形数据 ────────── */
+      knowledgeTree: [
+        {
+          id: 'cat-ship-archive',
+          type: 'ship-archive',
+          label: '船舶档案',
+          count: '21 份',
+          iconBg: 'bg-indigo-100 text-indigo-600',
+          iconPath: '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />',
+          open: true,
+          children: [
+            {
+              id: 'ship-001', type: 'ship', label: 'JIU HUA HAI 散运总部', open: true,
+              certSummary: { normal: 7, expiring: 0 },
+              params: {
+                mmsi: '413330000', imo: '9466520', callSign: 'BOCQ',
+                dwt: '53,393 吨', dimensions: '190.0×32.26×17.5 m', built: '2008年',
+                draft: '---- m', fuel: '22.00 吨/天', speed: '-- kn', company: '散运总部',
+              },
+              children: [
+                { id: 'cert-001a', type: 'file', ext: 'pdf', label: '船舶国籍证书',                         status: '正常', size: '2.3 MB', date: '2025-03-15', desc: '由中国海事局签发，有效期至 2030-06-30' },
+                { id: 'cert-001b', type: 'file', ext: 'pdf', label: '船舶所有权登记证书',                   status: '正常', size: '1.8 MB', date: '2025-03-15', desc: '登记编号：CSH-2021-08842' },
+                { id: 'cert-001c', type: 'file', ext: 'pdf', label: '载重线证书（国际/国内）',              status: '正常', size: '3.1 MB', date: '2025-01-20', desc: '夏季载重线 12.80m · 热带载重线 13.10m' },
+                { id: 'cert-001d', type: 'file', ext: 'pdf', label: '船舶适航证书',                         status: '正常', size: '2.5 MB', date: '2025-06-10', desc: '最近检验日期 2025-05-28 · CCS 船级社' },
+                { id: 'cert-001e', type: 'file', ext: 'pdf', label: '货船构造安全证书',                     status: '正常', size: '4.2 MB', date: '2025-04-05', desc: '包含船体结构、水密完整性检验报告' },
+                { id: 'cert-001f', type: 'file', ext: 'pdf', label: '货船设备安全证书',                     status: '正常', size: '3.7 MB', date: '2025-04-05', desc: '消防/救生/导航设备检验合格' },
+                { id: 'cert-001g', type: 'file', ext: 'pdf', label: '货船无线电安全证书',                   status: '正常', size: '2.9 MB', date: '2025-04-05', desc: 'GMDSS 设备检验 · MF/HF/VHF 齐全' },
+              ],
+            },
+            {
+              id: 'ship-002', type: 'ship', label: 'BRIG STAR 雅达公司', open: false,
+              certSummary: { normal: 6, expiring: 1 },
+              params: {
+                mmsi: '477655300', imo: '9461350', callSign: 'VRGC7',
+                dwt: '82,245 吨', dimensions: '228.99×32.26×32 m', built: '2010年',
+                draft: '14.429 m', fuel: '26.00 吨/天', speed: '-- kn', company: '雅达公司',
+              },
+              children: [
+                { id: 'cert-002a', type: 'file', ext: 'pdf', label: '船舶国籍证书',                         status: '正常', size: '2.1 MB', date: '2024-11-08', desc: '由香港海事处签发，有效期至 2029-11-07' },
+                { id: 'cert-002b', type: 'file', ext: 'pdf', label: '船舶所有权登记证书',                   status: '正常', size: '1.6 MB', date: '2024-11-08', desc: '登记编号：HK-2019-05621 · 散货船' },
+                { id: 'cert-002c', type: 'file', ext: 'pdf', label: '载重线证书（国际/国内）',              status: '即将到期', size: '2.9 MB', date: '2024-09-12', desc: '⚠ 2026-09-11 到期，需安排换证检验' },
+                { id: 'cert-002d', type: 'file', ext: 'pdf', label: '船舶适航证书',                         status: '正常', size: '2.3 MB', date: '2025-02-20', desc: '最近检验日期 2025-02-15 · DNV 船级社' },
+                { id: 'cert-002e', type: 'file', ext: 'pdf', label: '货船构造安全证书',                     status: '正常', size: '3.9 MB', date: '2025-02-20', desc: '船体结构检验 · 舱盖水密试验通过' },
+                { id: 'cert-002f', type: 'file', ext: 'pdf', label: '货船设备安全证书',                     status: '正常', size: '3.5 MB', date: '2025-02-20', desc: '救生艇/消防泵/EPIRB 年检合格' },
+                { id: 'cert-002g', type: 'file', ext: 'pdf', label: '货船无线电安全证书',                   status: '正常', size: '2.7 MB', date: '2025-02-20', desc: 'AIS / LRIT / NAVTEX 功能正常' },
+              ],
+            },
+            {
+              id: 'ship-003', type: 'ship', label: 'HUI XIANG HAI 雅达公司', open: false,
+              certSummary: { normal: 5, expiring: 2 },
+              params: {
+                mmsi: '477708700', imo: '9895642', callSign: 'VRTQ9',
+                dwt: '209,569 吨', dimensions: '299.95×50.0×25.2 m', built: '2021年',
+                draft: '---- m', fuel: '51.50 吨/天', speed: '-- kn', company: '雅达公司',
+              },
+              children: [
+                { id: 'cert-003a', type: 'file', ext: 'pdf', label: '船舶国籍证书',                         status: '正常', size: '2.0 MB', date: '2024-08-22', desc: '由香港海事处签发，有效期至 2029-08-21' },
+                { id: 'cert-003b', type: 'file', ext: 'pdf', label: '船舶所有权登记证书',                   status: '正常', size: '1.5 MB', date: '2024-08-22', desc: '登记编号：HK-2020-03189 · 散货船' },
+                { id: 'cert-003c', type: 'file', ext: 'pdf', label: '载重线证书（国际/国内）',              status: '即将到期', size: '2.8 MB', date: '2024-07-15', desc: '⚠ 2026-07-14 到期，距到期不足1年' },
+                { id: 'cert-003d', type: 'file', ext: 'pdf', label: '船舶适航证书',                         status: '即将到期', size: '2.4 MB', date: '2024-10-05', desc: '⚠ 2026-10-04 到期 · CCS 船级社' },
+                { id: 'cert-003e', type: 'file', ext: 'pdf', label: '货船构造安全证书',                     status: '正常', size: '3.8 MB', date: '2025-01-14', desc: '货舱/压载舱/舱口围板结构检验合格' },
+                { id: 'cert-003f', type: 'file', ext: 'pdf', label: '货船设备安全证书',                     status: '正常', size: '3.4 MB', date: '2025-01-14', desc: 'CO₂灭火系统/应急发电机年检合格' },
+                { id: 'cert-003g', type: 'file', ext: 'pdf', label: '货船无线电安全证书',                   status: '正常', size: '2.6 MB', date: '2025-01-14', desc: '卫星C站/SSB/雷达应答器功能正常' },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'cat-voyage-archive',
+          type: 'voyage-archive',
+          label: '航次档案',
+          count: '6 份',
+          iconBg: 'bg-emerald-100 text-emerald-600',
+          iconPath: '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />',
+          open: true,
+          children: [
+            {
+              id: 'va-ship-001', type: 'voy-ship', label: 'BAO NING LING', open: true,
+              children: [
+                { id: 'voy-001', type: 'voyage', label: '150航次', tag: '执行中', open: true,
+                  children: [
+                    { id: 'doc-001a', type: 'file', ext: 'pdf',  docType: 'bl',      label: '提单 (Bill of Lading)', size: '1.8 MB', date: '2025-07-10', desc: 'SHANGHAI → GHENT · 托运人: COSCO BULK · 32,000 吨钢材' },
+                    { id: 'doc-001b', type: 'file', ext: 'xlsx', docType: 'stowage', label: '配载图 (Stowage Plan)', size: '0.9 MB', date: '2025-07-09', desc: 'v2 修订版 · 1-4舱配载 · 吃水差 0.8m' },
+                    { id: 'doc-001c', type: 'file', ext: 'docx', docType: 'sof',     label: 'SOF (Statement of Facts 事实记录表)', size: '0.5 MB', date: '2025-07-12', desc: '7条记录 · 3项已确认 · 装货速率 8,500t/天' },
+                  ] },
+              ] },
+            {
+              id: 'va-ship-002', type: 'voy-ship', label: 'SHI LONG LING', open: false,
+              children: [
+                { id: 'voy-002', type: 'voyage', label: '102航次', tag: '已完成', open: false,
+                  children: [
+                    { id: 'doc-002a', type: 'file', ext: 'pdf',  docType: 'bl',      label: '提单 (Bill of Lading)', size: '1.6 MB', date: '2025-05-20', desc: 'MASAN → NEW ORLEANS · 托运人: POSCO · 28,500 吨卷钢' },
+                    { id: 'doc-002b', type: 'file', ext: 'pdf',  docType: 'stowage', label: '配载图 (Stowage Plan)', size: '1.1 MB', date: '2025-05-18', desc: '最终版 · 底舱全满 · 安全积载因数达标' },
+                    { id: 'doc-002c', type: 'file', ext: 'docx', docType: 'sof',     label: 'SOF (Statement of Facts 事实记录表)', size: '0.4 MB', date: '2025-06-05', desc: '航次已完结 · 无滞期 · NOR 递交及时' },
+                  ] },
+              ] },
+          ],
+        },
+        {
+          id: 'cat-port-data',
+          type: 'port-data',
+          label: '港口资料',
+          count: '1,204',
+          iconBg: 'bg-sky-100 text-sky-600',
+          iconPath: '<path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />',
+          open: false,
+          children: [
+            {
+              id: 'port-ship-001', type: 'port-ship', label: 'BAO NING LING', open: false,
+              children: [
+                {
+                  id: 'port-voy-150', type: 'port-voyage', label: '150航次', tag: '执行中', open: false,
+                  children: [
+                    { id: 'port-load-sh', type: 'port-node', label: 'SHANGHAI', tag: '装港', open: false,
+                      children: [
+                        { id: 'pf-001', type: 'file', ext: 'pdf',  label: '上海港港口概况', size: '4.2 MB', date: '2025-06-20', desc: '最新版 v3.2 · 泊位数量/水深/潮汐数据' },
+                        { id: 'pf-002', type: 'file', ext: 'docx', label: '泊位与吃水限制', size: '1.1 MB', date: '2025-06-18', desc: '罗泾码头最大吃水 12.5m · 潮汐窗口要求' },
+                        { id: 'pf-003', type: 'file', ext: 'xlsx', label: '港口费率表', size: '0.3 MB', date: '2025-07-01', desc: '2025年Q3费率 · 吨税/引航/拖轮/系解缆' },
+                        { id: 'pf-004', type: 'file', ext: 'pdf',  label: '装卸作业规定', size: '2.8 MB', date: '2025-05-15', desc: '钢材类货物装卸操作规程 · 工班效率标准' },
+                        { id: 'pf-005', type: 'file', ext: 'txt',  label: '代理联系方式', size: '0.1 MB', date: '2025-06-01', desc: 'PENAVICO 上海 · 24h值班电话 +86-21-6329-xxxx' },
+                      ] },
+                    { id: 'port-disch-ghent', type: 'port-node', label: 'GHENT', tag: '卸港', open: false,
+                      children: [
+                        { id: 'pf-006', type: 'file', ext: 'pdf',  label: '根特港港口概况', size: '3.5 MB', date: '2025-05-10', desc: '运河港 · 最大船舶 80,000 DWT · 船闸限制' },
+                        { id: 'pf-007', type: 'file', ext: 'docx', label: '卸货作业指引', size: '0.8 MB', date: '2025-05-08', desc: 'ArcelorMittal 钢厂码头 · 卸货速率要求' },
+                        { id: 'pf-008', type: 'file', ext: 'xlsx', label: '港口费率表', size: '0.2 MB', date: '2025-07-01', desc: '2025年Q3费率 · 含运河通行费估算' },
+                        { id: 'pf-009', type: 'file', ext: 'pdf',  label: 'ETA 申报要求', size: '1.4 MB', date: '2025-04-22', desc: '需提前 72h 申报 · VTS 报告点 · 垃圾申报' },
+                      ] },
+                    { id: 'port-alt-antwerp', type: 'port-node', label: 'ANTWERP', tag: '备选', open: false,
+                      children: [
+                        { id: 'pf-010', type: 'file', ext: 'pdf',  label: '安特卫普港港口概况', size: '3.8 MB', date: '2025-03-12', desc: '备选卸港 · 水深 15.2m · 可直接靠泊' },
+                        { id: 'pf-011', type: 'file', ext: 'xlsx', label: '港口费率表', size: '0.3 MB', date: '2025-07-01', desc: '2025年Q3费率 · 有长期协议折扣' },
+                      ] },
+                  ] },
+              ] },
+            {
+              id: 'port-ship-002', type: 'port-ship', label: 'SHI LONG LING', open: false,
+              children: [
+                { id: 'port-voy-138', type: 'port-voyage', label: '138航次', tag: '待启航', open: false, children: [] },
+              ] },
+            {
+              id: 'port-ship-003', type: 'port-ship', label: 'SHAN HU HAI', open: false,
+              children: [
+                { id: 'port-voy-104', type: 'port-voyage', label: '104航次', tag: '待卸货', open: false, children: [] },
+              ] },
+          ],
+        },
+      ],
+
+      /* ────────── 静态资源（非树形） ────────── */
+      staticResources: [
+        {
+          id: 'res-faq',
+          label: '常见问题',
+          count: '168',
+          iconBg: 'bg-amber-100 text-amber-600',
+          iconPath: '<path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />',
+          children: [
+            { id: 'faq-001', type: 'file', ext: 'pdf', label: '船舶证书常见问题 FAQ', size: '1.2 MB', date: '2025-06-01', desc: '168条常见问题 · 含证书办理流程指南' },
+          ],
+        },
+      ],
+
+      statusChips: [
+        { label: '超期提醒', count: 3, svg: smallIcon('<path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />', 'w-3.5 h-3.5') },
+        { label: '超期事项', count: 5, svg: smallIcon('<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />', 'w-3.5 h-3.5') },
+        { label: '智能推荐', count: 5, svg: smallIcon('<path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />', 'w-3.5 h-3.5') },
+      ],
+
+      // 底部状态栏统计（alert=true 时数字标红高亮）
+      footerStats: {
+        unfinished: { alert: 3, total: 12 },
+        todo: 28,
+        monthly: { count: 5, alert: true },
+        portDiscount: { count: 2, alert: true },
+        canalDiscount: { count: 1, alert: false },
+      },
+    }
+  },
+  watch: {
+    activeNav(val) {
+      if (val === 'knowledge') {
+        this.chatMessages = [{ role: 'ai', card: 'SOF · 7 条记录 · 3 已确认', text: '您好，我是调度智能助手。\n当前已加载「BAO NING LING / 150」的 SOF 事实记录表（7 条记录）。\n我可以帮您分析装货进度、核对单证数据、计算滞期费等，请随时提问。' }]
+        // 默认进入船舶档案
+        if (!this.selectedKbNode && this.knowledgeTree.length) {
+          this.selectKbNode(this.knowledgeTree[0])
+        }
+      } else if (val === 'checklist') {
+        this.chatMessages = [{ role: 'ai', card: '装港作业 · 7/17 已完成', text: '您好，我是调度智能助手。\n当前「BAO NING LING / 150」处于装港作业节点（7/17 已完成）。有什么可以帮您？' }]
+      } else if (val === 'assistant') {
+        this.chatMessages = [{ role: 'ai', text: '您好，我是调度智能助手。请问有什么可以帮助您的吗？' }]
+      }
+    },
+  },
+  mounted() {
+    // 骨架屏 → 内容 → 进度条动效 + 数字滚动
+    setTimeout(() => {
+      this.loading = false
+      this.$nextTick(() => {
+        setTimeout(() => { this.animated = true }, 150)
+        this.countUp(this.overallStats.percent)
+      })
+    }, 900)
+    window.addEventListener('keydown', this.onKeydown)
+  },
+  beforeUnmount() {
+    window.removeEventListener('keydown', this.onKeydown)
+  },
+  computed: {
+    overallStats() {
+      const total = this.nodes.reduce((s, n) => s + n.items.length, 0)
+      const done = this.nodes.reduce((s, n) => s + this.nodeDoneCount(n), 0)
+      return {
+        total,
+        done,
+        percent: total ? Math.round(done / total * 100) : 0,
+        doneNodes: this.nodes.filter(n => n.status === 'done').length,
+        activeNodes: this.nodes.filter(n => n.status === 'active').length,
+        pendingNodes: this.nodes.filter(n => n.status === 'pending').length,
+      }
+    },
+    activeNode() {
+      return this.nodes.find(n => n.id === this.activeNodeId) || this.nodes[0]
+    },
+    activeVessel() {
+      return this.vessels.find(v => v.active) || this.vessels[0]
+    },
+    sortedVessels() {
+      return [...this.vessels].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+    },
+    /* ── 根据 Tab 切换推荐问题 ── */
+    currentSuggestions() {
+      return this.activeNav === 'knowledge' ? this.knowledgeSuggestedQuestions : this.suggestedQuestions
+    },
+    currentAnswers() {
+      return this.activeNav === 'knowledge' ? this.knowledgeChatAnswers : this.chatAnswers
+    },
+    currentCards() {
+      return this.activeNav === 'knowledge' ? this.knowledgeChatCards : this.chatCards
+    },
+    currentDefaultAnswer() {
+      return this.activeNav === 'knowledge' ? this.knowledgeChatDefaultAnswer : this.chatDefaultAnswer
+    },
+    currentDefaultCard() {
+      return this.activeNav === 'knowledge' ? this.knowledgeChatDefaultCard : this.chatDefaultCard
+    },
+    currentDataSources() {
+      return this.activeNav === 'knowledge' ? this.knowledgeDataSources : this.dataSources
+    },
+    /* 智能助手Tab：仅在初始问候语时显示推荐问题标签 */
+    showAssistantSuggestions() {
+      return this.activeNav === 'assistant' && this.chatMessages.length === 1 && this.chatMessages[0].role === 'ai' && this.chatMessages[0].text === '您好，我是调度智能助手。请问有什么可以帮助您的吗？'
+    },
+    /** 知识库文件总数（含深层嵌套：port-data / voyage-archive） */
+    totalFileCount() {
+      let count = 0
+      const countLeaves = (node) => {
+        if (!node.children || !node.children.length) return
+        // 如果子节点是文件（有 ext 或 docType），直接计数
+        if (node.children[0] && (node.children[0].ext || node.children[0].docType)) {
+          count += node.children.length
+        } else {
+          node.children.forEach(ch => countLeaves(ch))
+        }
+      }
+      this.knowledgeTree.forEach(cat => {
+        if (cat.children) cat.children.forEach(l2 => countLeaves(l2))
+      })
+      return count
+    },
+    /** 知识库面包屑路径 */
+    kbBreadcrumb() {
+      if (!this.selectedKbNode) return []
+      return this.selectedKbNode.path || []
+    },
+    /** 知识库当前节点的子项 */
+    kbChildItems() {
+      if (!this.selectedKbNode || !this.selectedKbNode.node) return []
+      return this.selectedKbNode.node.children || []
+    },
+    /** 知识库文件夹统计：总项数 + 递归汇总所有后代文件大小 */
+    kbFolderStats() {
+      const count = this.kbChildItems.length
+      let totalBytes = 0
+      const parseSize = (s) => {
+        if (!s) return 0
+        const m = s.match(/^([\d.]+)\s*(B|KB|MB|GB)$/i)
+        if (!m) return 0
+        const v = parseFloat(m[1])
+        const u = m[2].toUpperCase()
+        return v * ({ B:1, KB:1024, MB:1048576, GB:1073741824 }[u] || 1)
+      }
+      const sumDeep = (items) => {
+        if (!items) return
+        for (const it of items) {
+          if (it.size) totalBytes += parseSize(it.size)
+          if (it.children) sumDeep(it.children)
+        }
+      }
+      sumDeep(this.kbChildItems)
+      let ds = ''
+      if (totalBytes >= 1073741824) ds = (totalBytes / 1073741824).toFixed(1) + ' GB'
+      else if (totalBytes >= 1048576) ds = (totalBytes / 1048576).toFixed(1) + ' MB'
+      else if (totalBytes >= 1024) ds = (totalBytes / 1024).toFixed(0) + ' KB'
+      else if (totalBytes > 0) ds = totalBytes + ' B'
+      return { count, totalSize: ds }
+    },
+    /* ── 对话历史按日期分组 ── */
+    groupedHistory() {
+      const groups = []
+      const seen = new Set()
+      this.chatHistory.forEach(h => {
+        if (!seen.has(h.date)) {
+          seen.add(h.date)
+          groups.push({ date: h.date, items: this.chatHistory.filter(x => x.date === h.date) })
+        }
+      })
+      return groups
+    },
+  },
+  methods: {
+    // 切换历史记录置顶状态
+    togglePin(h) {
+      if (h) {
+        if (typeof h.pinned === 'undefined') {
+          h.pinned = false
+        }
+        h.pinned = !h.pinned
+      }
+    },
+    nodeDoneCount(node) {
+      return node.items.filter(i => this.isItemDone(node, i)).length
+    },
+    nodePercent(node) {
+      return Math.round(this.nodeDoneCount(node) / node.items.length * 100)
+    },
+    // ── Step-Tab 流程导航 ──
+    selectNode(id) { this.activeNodeId = id },
+    isActiveNode(node) { return node.id === this.activeNodeId },
+    ringColor(node) {
+      if (node.status === 'done') return '#10b981'
+      if (this.isActiveNode(node)) return '#60a5fa'
+      return '#cbd5e1'
+    },
+    ringOffset(pct) { return 94.25 * (1 - pct / 100) },
+    // ── 检查项勾选 ──
+    isItemDone(node, item) {
+      if (item.done !== undefined) return item.done
+      return node.status === 'done'
+    },
+    toggleItem(node, item) { item.done = !this.isItemDone(node, item) },
+    checkboxCheckedClass(node) {
+      return node.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 'bg-corp-600 border-corp-600'
+    },
+    // ── 看板三分栏：状态流转 ──
+    isItemDoing(node, item) {
+      return !this.isItemDone(node, item) && item.doing === true
+    },
+    kanbanDone(node) {
+      return node.items.filter(i => this.isItemDone(node, i))
+    },
+    kanbanDoing(node) {
+      return node.items.filter(i => this.isItemDoing(node, i))
+    },
+    kanbanTodo(node) {
+      return node.items.filter(i => !this.isItemDone(node, i) && !this.isItemDoing(node, i))
+    },
+    startTask(node, item) { item.doing = true },
+    completeTask(node, item) { item.done = true; item.doing = false },
+    priorityTag(item) {
+      if (item.level === 'high') return { label: '高优', cls: 'bg-red-50 text-red-600 border-red-200' }
+      if (item.level === 'mid') return { label: '中优', cls: 'bg-amber-50 text-amber-600 border-amber-200' }
+      return { label: '普通', cls: 'bg-slate-50 text-slate-500 border-slate-200' }
+    },
+    // ── 节点状态样式 ──
+    statusLabel(node) {
+      return node.status === 'done' ? '已完成' : node.status === 'active' ? '进行中' : '待开始'
+    },
+    statusBadgeClass(node) {
+      return node.status === 'done' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+        node.status === 'active' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
+    },
+    statusDotClass(node) {
+      return node.status === 'done' ? 'bg-emerald-500' :
+        node.status === 'active' ? 'bg-blue-500' : 'bg-slate-400'
+    },
+    statusTextColor(node) {
+      return node.status === 'done' ? 'text-emerald-600' :
+        node.status === 'active' ? 'text-blue-600' : 'text-slate-400'
+    },
+    statusBarClass(node) {
+      return node.status === 'done' ? 'bg-emerald-500' :
+        node.status === 'active' ? 'bg-blue-500' : 'bg-slate-300'
+    },
+    // ── 风险等级分布（仅分组节点） ──
+    levelPct(level) {
+      const n = this.activeNode
+      if (!n.items.length) return 0
+      return Math.round(this.countByLevel(n, level) / n.items.length * 100)
+    },
+    levelDoneCount(level) {
+      const n = this.activeNode
+      return n.items.filter(i => i.level === level && this.isItemDone(n, i)).length
+    },
+    // ── 船舶选择 / 置顶 ──
+    selectVessel(v) {
+      if (v.active) return
+      this.vessels.forEach(x => { x.active = false })
+      v.active = true
+      this.loadVesselChecklist(v)
+    },
+    togglePin(v) { v.pinned = !v.pinned },
+    loadVesselChecklist(v) {
+      const stage = v.stage || 2
+      const total = this.nodes.reduce((s, n) => s + n.items.length, 0)
+      const targetDone = Math.round((v.progress || 0) / 100 * total)
+      let doneSoFar = 0
+      this.nodes.forEach((node, idx) => {
+        const i = idx + 1
+        if (i < stage) {
+          node.status = 'done'
+          node.items.forEach(it => { it.done = true; it.doing = false })
+          doneSoFar += node.items.length
+        } else if (i === stage) {
+          node.status = 'active'
+          const K = Math.max(0, Math.min(node.items.length, targetDone - doneSoFar))
+          const doingCount = Math.max(1, Math.min(node.items.length - K, Math.round(node.items.length * 0.18)))
+          node.items.forEach((it, k) => {
+            it.done = (k < K)
+            it.doing = (!it.done && k < K + doingCount)
+          })
+        } else {
+          node.status = 'pending'
+          node.items.forEach(it => { it.done = false; it.doing = false })
+        }
+      })
+      this.activeNodeId = stage
+      this.animated = false
+      this.$nextTick(() => { setTimeout(() => { this.animated = true }, 60) })
+      this.countUp(this.overallStats.percent)
+    },
+    statusChip(status) {
+      const map = {
+        '执行中': 'bg-emerald-100 text-emerald-700',
+        '航行中': 'bg-blue-100 text-blue-600',
+        '待启航': 'bg-amber-100 text-amber-600',
+        '待卸货': 'bg-violet-100 text-violet-600',
+      }
+      return map[status] || 'bg-slate-100 text-slate-500'
+    },
+    itemsByLevel(node, level) {
+      return node.items.filter(i => i.level === level)
+    },
+    countByLevel(node, level) {
+      return node.items.filter(i => i.level === level).length
+    },
+    /* ── 证书状态标签样式 ── */
+    statusTagClass(status) {
+      const map = {
+        '正常':     'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200',
+        '即将到期': 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-amber-50 text-amber-600 border border-amber-200 status-expiring',
+        '已过期':   'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-red-50 text-red-600 border border-red-200',
+      }
+      return map[status] || map['正常']
+    },
+    /* ── 航次状态标签样式 ── */
+    voyStatusTagClass(tag) {
+      const map = {
+        '执行中': 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-blue-50 text-blue-600 border border-blue-200',
+        '已完成': 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200',
+        '待启航': 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-amber-50 text-amber-600 border border-amber-200',
+        '待卸货': 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-violet-50 text-violet-600 border border-violet-200',
+      }
+      return map[tag] || 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-slate-50 text-slate-500 border border-slate-200'
+    },
+    /* ── 港口类型标签样式 ── */
+    portTagClass(tag) {
+      const map = {
+        '装港': 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-blue-50 text-blue-600 border border-blue-200',
+        '卸港': 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-violet-50 text-violet-600 border border-violet-200',
+        '备选': 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-slate-100 text-slate-500 border border-slate-200',
+      }
+      return map[tag] || 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-slate-50 text-slate-500 border border-slate-200'
+    },
+    /* ── 文件图标背景色（按扩展名） ── */
+    fileIconBg(ext) {
+      const map = { pdf: 'bg-red-50', xlsx: 'bg-emerald-50', xls: 'bg-emerald-50', docx: 'bg-blue-50', doc: 'bg-blue-50', txt: 'bg-slate-100' }
+      return map[ext] || 'bg-slate-50'
+    },
+    /* ── 文件图标颜色 ── */
+    fileIconColor(ext) {
+      const map = { pdf: 'text-red-500', xlsx: 'text-emerald-500', xls: 'text-emerald-500', docx: 'text-blue-500', doc: 'text-blue-500', txt: 'text-slate-400' }
+      return map[ext] || 'text-slate-400'
+    },
+    /* ── 文件扩展名标签 ── */
+    fileExtChip(ext) {
+      const map = { pdf: 'bg-red-50 text-red-600', xlsx: 'bg-emerald-50 text-emerald-600', xls: 'bg-emerald-50 text-emerald-600', docx: 'bg-blue-50 text-blue-600', doc: 'bg-blue-50 text-blue-600', txt: 'bg-slate-100 text-slate-500' }
+      return map[ext] || 'bg-slate-100 text-slate-500'
+    },
+    // 节点折叠：默认只显示前 flatLimit 条；分组节点默认只显示「高」优先级组
+    visibleGroups(node) {
+      return node.expanded ? this.priorityGroups : this.priorityGroups.filter(g => g.key === 'high')
+    },
+    visibleFlatItems(node) {
+      return node.expanded ? node.items : node.items.slice(0, this.flatLimit)
+    },
+    toggleLabel(node) {
+      if (node.expanded) return '收起'
+      if (node.grouped) return `展开全部 ${node.items.length} 项（中 ${this.countByLevel(node, 'mid')} · 低 ${this.countByLevel(node, 'low')}）`
+      return `展开剩余 ${node.items.length - this.flatLimit} 项`
+    },
+    ask(q) {
+      const text = (q || '').trim()
+      if (!text || this.chatTyping) return
+      this.chatMessages.push({ role: 'user', text })
+      this.chatInput = ''
+
+      // 根据问题生成工具链
+      this.toolSteps = this.getToolChainForQuestion(text)
+      this.currentToolStep = 0
+      this.toolCalling = true
+      this.chatTyping = true
+      this.scrollChat()
+
+      // 模拟工具调用过程
+      this.simulateToolCalls(text, 0)
+    },
+    getToolChainForQuestion(q) {
+      // 使用更宽松的匹配
+      const lowerQ = q.toLowerCase()
+      if (lowerQ.includes('文件') || lowerQ.includes('档案')) {
+        return [
+          { icon: '📁', name: '档案检索', status: 'pending', result: '查询航次档案' },
+          { icon: '📄', name: '文件列表', status: 'pending', result: '获取文件清单' },
+          { icon: '🔍', name: '元数据解析', status: 'pending', result: '解析文件属性' },
+          { icon: '✅', name: '结果整合', status: 'pending', result: '整理回复内容' }
+        ]
+      } else if (lowerQ.includes('巴拿马') || lowerQ.includes('运河')) {
+        return [
+          { icon: '🌍', name: '航线查询', status: 'pending', result: '确认航线信息' },
+          { icon: '🚢', name: '船舶参数', status: 'pending', result: '获取吨位吃水' },
+          { icon: '📋', name: '运河规则', status: 'pending', result: '查阅规则要求' },
+          { icon: '📊', name: '费用测算', status: 'pending', result: '估算运河费用' },
+          { icon: '✅', name: '方案生成', status: 'pending', result: '生成操作方案' }
+        ]
+      } else if (lowerQ.includes('测算') || lowerQ.includes('水平') || lowerQ.includes('kpi')) {
+        return [
+          { icon: '📊', name: 'KPI 数据库', status: 'pending', result: '查询航次指标' },
+          { icon: '🧮', name: 'BMS 计算引擎', status: 'pending', result: '执行公式计算' },
+          { icon: '💰', name: '成本核算', status: 'pending', result: '核算成本数据' },
+          { icon: '📈', name: '指标分析', status: 'pending', result: '分析运行水平' },
+          { icon: '✅', name: '报告生成', status: 'pending', result: '整理测算报告' }
+        ]
+      } else if (lowerQ.includes('港口') && lowerQ.includes('优惠')) {
+        return [
+          { icon: '🏭', name: '港口资料库', status: 'pending', result: '查询港口信息' },
+          { icon: '📑', name: '协议检索', status: 'pending', result: '查找优惠协议' },
+          { icon: '💰', name: '费率计算', status: 'pending', result: '计算优惠金额' },
+          { icon: '✅', name: '结果汇总', status: 'pending', result: '汇总优惠信息' }
+        ]
+      } else {
+        return [
+          { icon: '🔍', name: '意图识别', status: 'pending', result: '分析问题意图' },
+          { icon: '📚', name: '知识库检索', status: 'pending', result: '查找相关资料' },
+          { icon: '💭', name: '推理生成', status: 'pending', result: '生成回复内容' },
+          { icon: '✅', name: '完成', status: 'pending', result: '整理最终答案' }
+        ]
+      }
+    },
+    simulateToolCalls(question, stepIndex) {
+      if (stepIndex >= this.toolSteps.length) {
+        // 所有工具调用完成，显示最终答案
+        this.toolCalling = false
+        setTimeout(() => {
+          this.chatTyping = false
+
+          // 尝试智能匹配答案
+          let answer = this.currentDefaultAnswer
+          let card = this.currentDefaultCard
+
+          // 精确匹配
+          if (this.currentAnswers[question]) {
+            answer = this.currentAnswers[question]
+            card = this.currentCards[question] || card
+          } else {
+            // 模糊匹配：查找包含相同关键词的问题
+            for (const key in this.currentAnswers) {
+              const keyWords = key.split(/\s+/)
+              const matchCount = keyWords.filter(word => question.includes(word)).length
+              if (matchCount >= 2) {
+                answer = this.currentAnswers[key]
+                card = this.currentCards[key] || card
+                break
+              }
+            }
+          }
+
+          this.chatMessages.push({ role: 'ai', text: answer, card: card })
+          this.scrollChat()
+        }, 400)
+        return
+      }
+
+      // 更新当前步骤状态为 running - 使用全量更新确保响应式
+      this.toolSteps = this.toolSteps.map((step, idx) => {
+        if (idx === stepIndex) {
+          return { ...step, status: 'running' }
+        }
+        return step
+      })
+      this.currentToolStep = stepIndex
+      this.scrollChat()
+
+      // 模拟调用延迟
+      const delay = 500 + Math.random() * 500
+      setTimeout(() => {
+        // 标记当前步骤为完成
+        this.toolSteps = this.toolSteps.map((step, idx) => {
+          if (idx === stepIndex) {
+            return { ...step, status: 'completed' }
+          }
+          return step
+        })
+
+        // 继续下一步
+        this.simulateToolCalls(question, stepIndex + 1)
+      }, delay)
+    },
+    scrollChat() {
+      this.$nextTick(() => {
+        const el = this.$refs.chatBox
+        if (el) el.scrollTop = el.scrollHeight
+      })
+    },
+    // 推荐提问「换一换」：循环轮换
+    refreshSuggestions() {
+      const all = [
+        '装港作业还有哪些待办？',
+        'LAYCAN 风险如何评估？',
+        '运费催收流程是什么？',
+        '如何申请港口优惠？',
+        '当前航次总进度如何？',
+        '装港作业进行中任务有哪些？',
+        '如何查看港口状态？',
+        '运费催收是否逾期？',
+      ]
+      const shown = new Set(this.currentSuggestions)
+      const pool = all.filter(q => !shown.has(q))
+      // 取当前列表首个移到末尾，再补一个新问题
+      const rotated = [...this.currentSuggestions.slice(1), pool[Math.floor(Math.random() * pool.length)] || this.currentSuggestions[0]]
+      this.currentSuggestions = rotated
+    },
+    // 数字滚动动画（easeOutCubic）
+    countUp(target) {
+      const dur = 1000
+      const start = performance.now()
+      const tick = (now) => {
+        const p = Math.min(1, (now - start) / dur)
+        this.displayPercent = Math.round(target * (1 - Math.pow(1 - p, 3)))
+        if (p < 1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    },
+    /* ── 加载历史对话 ── */
+    loadHistoryChat(h) {
+      this.historyActiveId = h.id
+      this.chatMessages = [
+        { role: 'user', text: h.title },
+        { role: 'ai', card: h.date + ' · ' + h.time, text: h.preview + '\n\n已为您加载此历史对话。您可以继续提问或查看其他对话。' },
+      ]
+      this.$nextTick(() => this.scrollChat())
+    },
+    currentTime() {
+      return new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})
+    },
+    /* ── 知识库：树节点选择 & 导航 ── */
+    findKbNodePath(tree, targetId, trail = []) {
+      for (const n of tree) {
+        const currentTrail = [...trail, n]
+        if (n.id === targetId) return currentTrail
+        if (n.children && n.children.length) {
+          const found = this.findKbNodePath(n.children, targetId, currentTrail)
+          if (found) return found
+        }
+      }
+      return null
+    },
+    selectKbNode(node) {
+      let path = this.findKbNodePath(this.knowledgeTree, node.id)
+      if (!path || !path.length) {
+        const res = this.staticResources.find(r => r.id === node.id)
+        if (res) path = [res]
+      }
+      this.selectedKbNode = { node, path: path || [] }
+    },
+    /** 右侧树点击：展开/折叠 + 选中 */
+    toggleAndSelectKb(node) {
+      node.open = !node.open
+      this.selectKbNode(node)
+      if (this.activeNav !== 'knowledge') this.activeNav = 'knowledge'
+    },
+    /** 右侧树叶子节点点击 */
+    selectKbLeaf(node) {
+      this.selectKbNode(node)
+      if (this.activeNav !== 'knowledge') this.activeNav = 'knowledge'
+    },
+    /** 左侧卡片点击：进入子文件夹 */
+    selectKbChild(child) {
+      if (!child.children || !child.children.length) return
+      const currentPath = this.selectedKbNode?.path || []
+      this.selectedKbNode = { node: child, path: [...currentPath, child] }
+    },
+    /** 面包屑导航 */
+    navigateBreadcrumb(index) {
+      const path = this.selectedKbNode?.path || []
+      if (index >= 0 && index < path.length) {
+        this.selectedKbNode = { node: path[index], path: path.slice(0, index + 1) }
+      }
+    },
+    /** 判断子项是否为文件夹（可继续进入） */
+    kbChildIsFolder(child) {
+      return !!(child.children && child.children.length)
+    },
+    /** 知识库卡片标签样式 */
+    kbTagClass(child) {
+      if (child.tag === '装港') return 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-blue-50 text-blue-600 border border-blue-200'
+      if (child.tag === '卸港') return 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-violet-50 text-violet-600 border border-violet-200'
+      if (child.tag === '备选') return 'inline-flex items-center h-[18px] px-1.5 rounded text-[9.5px] font-semibold bg-slate-100 text-slate-500 border border-slate-200'
+      return this.voyStatusTagClass(child.tag)
+    },
+    /* ── 知识库卡片图标 ── */
+    kbItemIconBg(child) {
+      if (child.type === 'ship' || child.type === 'voy-ship' || child.type === 'port-ship') return 'bg-corp-100 text-corp-600'
+      if (child.type === 'voyage' || child.type === 'port-voyage') return 'bg-amber-100 text-amber-600'
+      if (child.type === 'port-node') return 'bg-sky-100 text-sky-600'
+      if (child.docType === 'bl') return 'bg-blue-100 text-blue-600'
+      if (child.docType === 'stowage') return 'bg-emerald-100 text-emerald-600'
+      if (child.docType === 'sof') return 'bg-amber-100 text-amber-600'
+      if (child.type === 'file' || child.ext) return this.fileIconBg(child.ext)
+      return 'bg-slate-100 text-slate-500'
+    },
+    kbItemIconColor(child) {
+      if (child.docType === 'bl') return 'text-blue-500'
+      if (child.docType === 'stowage') return 'text-emerald-500'
+      if (child.docType === 'sof') return 'text-amber-500'
+      if (child.type === 'file' || child.ext) return this.fileIconColor(child.ext) || 'text-slate-400'
+      return ''
+    },
+    kbItemIconPath(child) {
+      // 船舶图标
+      if (child.type === 'ship' || child.type === 'voy-ship' || child.type === 'port-ship')
+        return '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />'
+      // 航次/日历图标
+      if (child.type === 'voyage' || child.type === 'port-voyage')
+        return '<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />'
+      // 港口/定位图标
+      if (child.type === 'port-node')
+        return '<path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />'
+      // 提单 - 蓝色文件
+      if (child.docType === 'bl')
+        return '<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />'
+      // 配载图 - 绿色网格
+      if (child.docType === 'stowage')
+        return '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />'
+      // SOF - 琥珀色剪贴板
+      if (child.docType === 'sof')
+        return '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />'
+      // 默认文件图标
+      return '<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />'
+    },
+
+    onKeydown(e) {
+      if (e.key === 'Escape') this.reportMode = false
+    },
+  },
+}).mount('#app')
+</script>
+</body>
+</html>
