@@ -174,6 +174,36 @@
 
   /* 聊天区域平滑滚动 */
   .chat-scroll { scroll-behavior: smooth; }
+
+  /* 调度工作台：复刻业务卡片与横向明细表 */
+  .dispatch-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+  .dispatch-table th {
+    padding: 6px 10px;
+    color: #475569;
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+    background: #f1f5f9;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .dispatch-table th:first-child { border-left: 1px solid #e2e8f0; border-radius: 8px 0 0 0; }
+  .dispatch-table th:last-child { border-right: 1px solid #e2e8f0; border-radius: 0 8px 0 0; }
+  .dispatch-table td {
+    height: 36px;
+    padding: 7px 10px;
+    text-align: center;
+    color: #94a3b8;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .dispatch-table td:first-child { border-left: 1px solid #e2e8f0; border-radius: 0 0 0 8px; }
+  .dispatch-table td:last-child { border-right: 1px solid #e2e8f0; border-radius: 0 0 8px 0; }
+  .dispatch-dashboard .h-12 { height: 2.75rem; }
+  .dispatch-dashboard .h-11 { height: 2.25rem; }
+  .dispatch-dashboard .h-9 { height: 2rem; }
+  .dispatch-dashboard .py-3 { padding-top: .5rem; padding-bottom: .5rem; }
+  .dispatch-dashboard .pb-4 { padding-bottom: .75rem; }
 </style>
 </head>
 
@@ -612,6 +642,153 @@
         </div>
       </div>
     </main>
+
+      <!-- ════════ DISPATCH TAB: 调度工作台 ════════ -->
+      <div v-if="activeNav === 'dispatch'" class="dispatch-dashboard flex-1 min-w-0 min-h-0 overflow-y-auto slim-scroll bg-slate-100">
+        <div class="p-4 space-y-4">
+
+          <!-- 航次管理查询 -->
+          <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
+              <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800">
+                <span class="w-7 h-7 rounded-lg bg-blue-50 text-corp-600 flex items-center justify-center">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />
+                  </svg>
+                </span>
+                航次管理查询
+              </h2>
+              <div class="flex items-center gap-1 text-slate-400">
+                <button @click="dispatchCollapsed.voyage = !dispatchCollapsed.voyage" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.voyage ? '展开航次管理查询' : '收起航次管理查询'">
+                  <svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.voyage ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
+                </button>
+                <button @click="refreshDispatch('voyage')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新航次管理查询">
+                  <svg class="w-4 h-4" :class="dispatchRefreshing.voyage ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg>
+                </button>
+                <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                </button>
+              </div>
+            </div>
+            <div v-show="!dispatchCollapsed.voyage" class="px-4 pb-4">
+              <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll">
+                <button v-for="tab in dispatchVoyageTabs" :key="tab.id" @click="dispatchVoyageTab = tab.id"
+                  :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchVoyageTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">
+                  {{ tab.label }} <span :class="dispatchVoyageTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span>
+                </button>
+              </div>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 py-3">
+                <label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600">
+                  <span class="shrink-0">查询范围：</span>
+                  <select v-model="dispatchFilters.voyageScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100">
+                    <option>全部航次</option><option>我的科室</option><option>我负责的航次</option>
+                  </select>
+                </label>
+                <label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600">
+                  <span class="shrink-0">运输航线：</span>
+                  <select v-model="dispatchFilters.route" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100">
+                    <option>请选择</option><option>远东—欧洲</option><option>远东—美湾</option><option>东南亚区域</option>
+                  </select>
+                </label>
+              </div>
+              <div class="overflow-x-auto slim-scroll pb-1">
+                <table class="dispatch-table min-w-[1460px]">
+                  <thead><tr>
+                    <th>船舶名称</th><th>航次</th><th>开始港</th><th>航次起始时间（G）</th><th>结束港</th><th>航次完成时间（G）</th><th>港口名称</th><th>时区</th><th>目的</th><th>抵港时间</th><th>离港时间</th><th>装/卸货开始时间</th><th>装/卸货完成时间</th><th>加油开始时间</th><th>加油结束时间</th><th>创建人</th><th>操作</th>
+                  </tr></thead>
+                  <tbody><tr><td colspan="17">暂无数据</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 调度-航次测算 -->
+          <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
+              <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800">
+                <span class="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 18.75h16.5M6 16.5V9.75m4 6.75V5.25m4 11.25v-4.5m4 4.5V7.5" /></svg>
+                </span>
+                调度-航次测算
+              </h2>
+              <div class="flex items-center gap-1 text-slate-400">
+                <button @click="dispatchCollapsed.calc = !dispatchCollapsed.calc" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.calc ? '展开航次测算' : '收起航次测算'"><svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.calc ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg></button>
+                <button @click="refreshDispatch('calc')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新航次测算"><svg class="w-4 h-4" :class="dispatchRefreshing.calc ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg></button>
+                <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+              </div>
+            </div>
+            <div v-show="!dispatchCollapsed.calc" class="px-4 pb-4">
+              <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll">
+                <button v-for="tab in dispatchCalcTabs" :key="tab.id" @click="dispatchCalcTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchCalcTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">
+                  {{ tab.label }} <span v-if="tab.count" :class="dispatchCalcTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span>
+                </button>
+              </div>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 py-3">
+                <label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.calcScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>我的科室</option><option>我负责的航次</option><option>全部航次</option></select></label>
+                <label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">经营公司：</span><select v-model="dispatchFilters.company" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>全部公司</option><option>中远海运散运</option><option>广州远洋</option></select></label>
+              </div>
+              <div class="overflow-x-auto slim-scroll pb-1">
+                <table class="dispatch-table min-w-[980px]"><thead><tr><th>经营公司</th><th>船舶</th><th>航次</th><th>航次类型</th><th>测算2.0</th><th>测算4.0</th><th>调度</th><th>航次结束时间</th><th>操作</th></tr></thead><tbody><tr><td colspan="9">暂无数据</td></tr></tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+            <!-- 调度-使费业务 -->
+            <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
+                <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3.75h12M6 8.25h12M8.25 3.75v16.5m7.5-16.5v16.5M5.25 20.25h13.5" /></svg></span>调度-使费业务</h2>
+                <div class="flex items-center gap-1 text-slate-400">
+                  <button @click="dispatchCollapsed.cost = !dispatchCollapsed.cost" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.cost ? '展开使费业务' : '收起使费业务'"><svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.cost ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg></button>
+                  <button @click="refreshDispatch('cost')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新使费业务"><svg class="w-4 h-4" :class="dispatchRefreshing.cost ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg></button>
+                  <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                </div>
+              </div>
+              <div v-show="!dispatchCollapsed.cost" class="px-4 pb-4">
+                <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll"><button v-for="tab in dispatchCostTabs" :key="tab.id" @click="dispatchCostTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchCostTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">{{ tab.label }} <span :class="dispatchCostTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span></button></div>
+                <div class="py-3 max-w-[420px]"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.costScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>全部航次</option><option>我的科室</option><option>我负责的航次</option></select></label></div>
+                <div class="overflow-x-auto slim-scroll pb-1"><table class="dispatch-table min-w-[780px]"><thead><tr><th>船舶</th><th>航次</th><th>港口名称</th><th>目的</th><th>优惠项目</th><th>说明</th><th>预抵港时间</th><th>操作</th></tr></thead><tbody><tr><td colspan="8">暂无数据</td></tr></tbody></table></div>
+              </div>
+            </section>
+
+            <div class="space-y-4">
+              <!-- 调度-燃油业务 -->
+              <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
+                  <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3.75h6.75a2.25 2.25 0 012.25 2.25v14.25h-9V3.75zM8.25 7.5h6m1.5 1.5h1.5a2.25 2.25 0 012.25 2.25v5.625a1.875 1.875 0 01-3.75 0V12" /></svg></span>调度-燃油业务</h2>
+                  <div class="flex items-center gap-1 text-slate-400">
+                    <button @click="dispatchCollapsed.fuel = !dispatchCollapsed.fuel" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.fuel ? '展开燃油业务' : '收起燃油业务'"><svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.fuel ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg></button>
+                    <button @click="refreshDispatch('fuel')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新燃油业务"><svg class="w-4 h-4" :class="dispatchRefreshing.fuel ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg></button>
+                    <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                  </div>
+                </div>
+                <div v-show="!dispatchCollapsed.fuel" class="px-4 pb-4">
+                  <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll"><button v-for="tab in dispatchFuelTabs" :key="tab.id" @click="dispatchFuelTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchFuelTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">{{ tab.label }} <span v-if="tab.count" :class="dispatchFuelTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span></button></div>
+                  <div class="py-3 max-w-[420px]"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.fuelScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>全部航次</option><option>我的科室</option><option>我负责的航次</option></select></label></div>
+                  <div class="overflow-x-auto slim-scroll pb-1"><table class="dispatch-table min-w-[920px]"><thead><tr><th>船舶</th><th>航次</th><th>加油港口</th><th>加油开始时间</th><th>加油完成时间</th><th>离港时间</th><th>联系单号</th><th>调度</th><th>操作</th></tr></thead><tbody><tr><td colspan="9">暂无数据</td></tr></tbody></table></div>
+                </div>
+              </section>
+
+              <!-- 调度-特殊航次 -->
+              <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
+                  <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18m9-9H3m15.364-6.364L5.636 18.364m0-12.728l12.728 12.728" /></svg></span>调度-特殊航次</h2>
+                  <div class="flex items-center gap-1 text-slate-400">
+                    <button @click="dispatchCollapsed.special = !dispatchCollapsed.special" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.special ? '展开特殊航次' : '收起特殊航次'"><svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.special ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg></button>
+                    <button @click="refreshDispatch('special')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新特殊航次"><svg class="w-4 h-4" :class="dispatchRefreshing.special ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg></button>
+                    <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                  </div>
+                </div>
+                <div v-show="!dispatchCollapsed.special" class="px-4 pb-4">
+                  <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll"><button v-for="tab in dispatchSpecialTabs" :key="tab.id" @click="dispatchSpecialTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchSpecialTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">{{ tab.label }} <span :class="dispatchSpecialTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span></button></div>
+                  <div class="py-3 max-w-[420px]"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.specialScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>我的科室</option><option>我负责的航次</option><option>全部航次</option></select></label></div>
+                  <div class="overflow-x-auto slim-scroll pb-1"><table class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>航线</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody><tr><td colspan="6">暂无数据</td></tr></tbody></table></div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- ════════ KNOWLEDGE TAB: 调度知识库 ════════ -->
       <div v-if="activeNav === 'knowledge'" class="flex-1 flex flex-col min-h-0 bg-page">
@@ -1281,9 +1458,50 @@ createApp({
       navItems: [
         { id: 'checklist',  label: 'CHECKLIST',       type: 'tab' },
         { id: 'bms',        label: 'BMS',              type: 'link', href: 'http://bms.ibulk.coscoshipping.com/' },
+        { id: 'dispatch',   label: '调度工作台',        type: 'tab' },
         { id: 'knowledge',  label: '调度知识库',    type: 'tab' },
         { id: 'assistant',  label: '智能助手',          type: 'tab' },
       ],
+
+      /* ── 调度工作台 Tab ── */
+      dispatchVoyageTabs: [
+        { id: 'unfinished', label: '未完航次', count: '0/0' },
+        { id: 'unplanned', label: '无航次安排', count: '0' },
+        { id: 'delivery', label: '交船登记', count: '0' },
+        { id: 'cargo-check', label: '货量校验提醒', count: '0' },
+        { id: 'laycan', label: '超受载期', count: '0' },
+        { id: 'certificate', label: '到期/预警证书', count: '883/445' },
+      ],
+      dispatchCalcTabs: [
+        { id: 'pending', label: '待新建', count: '0' },
+        { id: 'deviation', label: '预实测期和水平偏差', count: '' },
+      ],
+      dispatchCostTabs: [
+        { id: 'discount', label: '预选港口使费优惠', count: '0' },
+        { id: 'owner-cost', label: '待导入船东费用', count: '0' },
+      ],
+      dispatchFuelTabs: [
+        { id: 'report', label: '补录加油报', count: '0' },
+        { id: 'backfill', label: '倒补', count: '0' },
+        { id: 'carbon', label: '碳税消耗', count: '' },
+      ],
+      dispatchSpecialTabs: [
+        { id: 'eua', label: 'EUA', count: '0' },
+        { id: 'suez', label: '苏伊士运河预折扣', count: '51' },
+        { id: 'repair', label: '修船', count: '0' },
+        { id: 'special', label: '特殊处理', count: '0' },
+      ],
+      dispatchVoyageTab: 'unfinished',
+      dispatchCalcTab: 'pending',
+      dispatchCostTab: 'discount',
+      dispatchFuelTab: 'report',
+      dispatchSpecialTab: 'eua',
+      dispatchFilters: {
+        voyageScope: '全部航次', route: '请选择', calcScope: '我的科室', company: '全部公司',
+        costScope: '全部航次', fuelScope: '全部航次', specialScope: '我的科室',
+      },
+      dispatchCollapsed: { voyage: false, calc: false, cost: false, fuel: false, special: false },
+      dispatchRefreshing: { voyage: false, calc: false, cost: false, fuel: false, special: false },
 
       loading: true,        // 骨架屏
       animated: false,      // 进度条动效开关（挂载后从 0 增长）
@@ -1783,6 +2001,10 @@ createApp({
     },
   },
   methods: {
+    refreshDispatch(section) {
+      this.dispatchRefreshing[section] = true
+      setTimeout(() => { this.dispatchRefreshing[section] = false }, 650)
+    },
     // 切换历史记录置顶状态
     togglePin(h) {
       if (h) {
