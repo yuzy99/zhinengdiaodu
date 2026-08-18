@@ -214,6 +214,11 @@
   .dispatch-dashboard .h-9 { height: 2rem; }
   .dispatch-dashboard .py-3 { padding-top: .5rem; padding-bottom: .5rem; }
   .dispatch-dashboard .pb-4 { padding-bottom: .75rem; }
+  .workflow-scroll { scrollbar-width: thin; scrollbar-color: #94a3b8 #e2e8f0; }
+  .workflow-scroll::-webkit-scrollbar { height: 8px; }
+  .workflow-scroll::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 999px; }
+  .workflow-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 999px; }
+  .workflow-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
 </style>
 </head>
 
@@ -398,28 +403,51 @@
 
       <!-- 流程导航 Step-Tab（控制中枢）：点击切换下方详情 -->
       <div class="px-5 pb-3 shrink-0">
-        <div class="flex items-center gap-1.5 p-1 rounded-2xl bg-white/70 border border-slate-200/70 overflow-x-auto slim-scroll">
-          <button v-for="(node, i) in nodes" :key="node.id" @click="selectNode(node.id)"
-            :class="['relative flex-1 min-w-[124px] flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-200',
-              isActiveNode(node) ? 'bg-corp-900 text-white shadow-md shadow-corp-900/15' : 'text-slate-600 hover:bg-slate-100/70']">
+        <div class="workflow-scroll flex items-center overflow-x-auto rounded-2xl border border-slate-200/70 bg-white/70 p-1.5 pb-2.5">
+          <template v-for="(step, i) in workflowSteps" :key="step.key">
+          <div v-if="step.kind === 'group'" :class="['flex shrink-0 items-center rounded-xl border p-1 transition-all', expandedPortGroups[step.nodeId] ? 'border-blue-300 bg-blue-50/60 shadow-sm' : 'border-slate-200 bg-white']">
+            <button @click="togglePortGroup(step.nodeId)" :class="['flex min-w-[118px] shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all', isActiveWorkflowStep(step) ? 'bg-corp-900 text-white shadow-sm' : 'text-slate-700 hover:bg-blue-50']">
+              <span :class="['flex h-6 w-6 shrink-0 items-center justify-center rounded-lg', isActiveWorkflowStep(step) ? 'bg-white/15 text-sky-200' : 'bg-blue-100 text-blue-600']">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 6.75h15M6.75 3.75v6m10.5-6v6M5.25 12h13.5M5.25 16.5h13.5M5.25 21h13.5" /></svg>
+              </span>
+              <span class="min-w-0 flex-1"><span class="block truncate text-[11.5px] font-bold leading-tight">{{ step.title }}</span><span :class="['mt-0.5 block truncate text-[9.5px]', isActiveWorkflowStep(step) ? 'text-slate-300' : 'text-slate-400']">{{ step.subtitle }}</span></span>
+              <span :class="['text-[9px] font-semibold', isActiveWorkflowStep(step) ? 'text-sky-200' : 'text-blue-500']">{{ expandedPortGroups[step.nodeId] ? '收起' : '展开' }}</span>
+            </button>
+            <template v-if="expandedPortGroups[step.nodeId]">
+              <span class="mx-1 h-0 w-4 shrink-0 border-t-2 border-dotted border-blue-300"></span>
+              <template v-for="(portStep, portIndex) in step.children" :key="portStep.key">
+                <button @click="selectWorkflowStep(portStep)" :class="['flex min-w-[112px] shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-all', isActiveWorkflowStep(portStep) ? 'bg-corp-900 text-white shadow-sm' : portStep.status === 'done' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-white text-slate-600 hover:bg-slate-100']">
+                  <svg viewBox="0 0 36 36" class="h-5 w-5 shrink-0"><circle cx="18" cy="18" r="15" fill="none" :stroke="isActiveWorkflowStep(portStep) ? 'rgba(255,255,255,0.22)' : '#e9eef5'" stroke-width="3.2"/><circle class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(portStep)" stroke-width="3.2" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? portStep.percent : 0)" transform="rotate(-90 18 18)"/><path v-if="portStep.status === 'done'" d="M12 18.5l3.4 3.4L24 13" fill="none" :stroke="isActiveWorkflowStep(portStep) ? '#fff' : '#10b981'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><text v-else x="18" y="19.2" text-anchor="middle" dominant-baseline="central" :fill="isActiveWorkflowStep(portStep) ? '#fff' : '#64748b'" font-size="11" font-weight="700">{{ portIndex + 1 }}</text></svg>
+                  <span class="min-w-0"><span class="block truncate text-[10.5px] font-bold">{{ portStep.title }}</span><span :class="['mt-0.5 block max-w-[72px] truncate text-[9px]', isActiveWorkflowStep(portStep) ? 'text-slate-300' : 'text-slate-400']">{{ portStep.subtitle }}</span></span>
+                </button>
+                <span v-if="portIndex < step.children.length - 1" :class="['mx-1 h-0 w-4 shrink-0 border-t-2 border-dotted', portStep.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"></span>
+              </template>
+            </template>
+          </div>
+          <button v-else @click="selectWorkflowStep(step)"
+            :class="['relative shrink-0 flex items-center rounded-xl transition-all duration-200',
+              step.status === 'done' ? 'min-w-[76px] gap-1.5 px-2 py-1' : 'min-w-[120px] gap-2 px-2 py-1.5',
+              isActiveWorkflowStep(step) ? 'bg-corp-900 text-white shadow-md shadow-corp-900/15 border-corp-900' : step.status === 'done' ? 'bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100' : 'text-slate-600 hover:bg-slate-100/70']">
             <!-- 进度环 -->
-            <svg viewBox="0 0 36 36" class="w-7 h-7 shrink-0">
-              <circle cx="18" cy="18" r="15" fill="none" :stroke="isActiveNode(node) ? 'rgba(255,255,255,0.22)' : '#e9eef5'" stroke-width="3.2"/>
+            <svg viewBox="0 0 36 36" :class="['shrink-0', step.status === 'done' ? 'w-5 h-5' : 'w-6 h-6']">
+              <circle cx="18" cy="18" r="15" fill="none" :stroke="isActiveWorkflowStep(step) ? 'rgba(255,255,255,0.22)' : '#e9eef5'" stroke-width="3.2"/>
               <circle class="ring-arc" cx="18" cy="18" r="15" fill="none"
-                :stroke="ringColor(node)" stroke-width="3.2" stroke-linecap="round"
-                :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? nodePercent(node) : 0)"
+                :stroke="workflowRingColor(step)" stroke-width="3.2" stroke-linecap="round"
+                :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? step.percent : 0)"
                 transform="rotate(-90 18 18)"/>
-              <g v-if="node.status === 'done'" :class="isActiveNode(node) ? 'text-white' : 'text-emerald-500'" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <g v-if="step.status === 'done'" :class="isActiveWorkflowStep(step) ? 'text-white' : 'text-emerald-500'" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 18.5l3.4 3.4L24 13"/>
               </g>
               <text v-else x="18" y="19.2" text-anchor="middle" dominant-baseline="central"
-                :fill="isActiveNode(node) ? '#ffffff' : '#64748b'" font-size="12.5" font-weight="700">{{ node.id }}</text>
+                :fill="isActiveWorkflowStep(step) ? '#ffffff' : '#64748b'" font-size="12.5" font-weight="700">{{ i + 1 }}</text>
             </svg>
             <div class="flex flex-col min-w-0">
-              <span :class="['text-[12.5px] font-bold truncate leading-tight', isActiveNode(node) ? 'text-white' : 'text-slate-700']">{{ node.title }}</span>
-              <span :class="['text-[10px] tabular-nums leading-tight mt-0.5', isActiveNode(node) ? 'text-slate-300' : 'text-slate-400']">{{ nodePercent(node) }}% · {{ nodeDoneCount(node) }}/{{ node.items.length }}</span>
+              <span :class="['font-bold truncate leading-tight', step.status === 'done' ? 'text-[10.5px]' : 'text-[11.5px]', isActiveWorkflowStep(step) ? 'text-white' : step.status === 'done' ? 'text-emerald-700' : 'text-slate-700']">{{ step.title }}</span>
+              <span v-if="step.status !== 'done'" :class="['max-w-[70px] truncate tabular-nums leading-tight mt-0.5 text-[9.5px]', isActiveWorkflowStep(step) ? 'text-slate-300' : 'text-slate-400']">{{ step.subtitle }}</span>
             </div>
           </button>
+          <span v-if="i < workflowSteps.length - 1" :class="['mx-1 h-0 w-5 shrink-0 border-t-2 border-dotted', step.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"></span>
+          </template>
         </div>
       </div>
 
@@ -477,7 +505,7 @@
       <!-- 详情区：看板三分栏（已完成 / 执行中 / 待启动） -->
       <div class="flex-1 min-h-0 px-5 pb-5 pt-3 flex flex-col">
         <transition name="node-fade" mode="out-in">
-          <div :key="activeNode.id" class="flex flex-col h-full min-h-0">
+          <div :key="activeNode.id + '-' + (activePortCall?.id || 'stage')" class="flex flex-col h-full min-h-0">
             <!-- 三栏看板 -->
             <div class="flex-1 min-h-0 grid grid-cols-3 gap-4">
               <!-- 已完成 -->
@@ -1663,6 +1691,8 @@ createApp({
         { name: 'ZHEN ZHU HAI', voyage: '102', status: '航行中', route: 'SHANGHAI -> ROTTERDAM-NLRTM', active: false, progress: 65, stage: 4, pinned: true, group: 'team' },
       ],
       flatLimit: 5, // 节点卡片默认展示条数
+      activePortId: 'load-2',
+      expandedPortGroups: { 3: false, 5: false },
 
       // ── 6 节点 CHECKLIST ──
       nodes: [
@@ -1716,6 +1746,67 @@ createApp({
         {
           id: 6, title: '航次总结', status: 'pending', grouped: false, expanded: false,
           items: ['结束航次，录入 4.0', '碳税登记及购买申请', '航次归档', '航次总结'].map(t => ({ text: t })),
+        },
+      ],
+
+      // 多装港 / 多卸港演示数据：港口层负责切换本港 CHECKLIST
+      portCalls: [
+        {
+          id: 'load-1', nodeId: 3, sequence: 1, name: 'QINGDAO', code: 'CNTAO', eta: '05-06 02:00', status: '已完成',
+          items: [
+            { text: '委托装港代理', level: 'high', done: true },
+            { text: '确认靠泊计划与泊位', level: 'high', done: true },
+            { text: '指导船长递交 NOR', level: 'mid', done: true },
+            { text: '装货数量与配载确认', level: 'high', done: true },
+            { text: '装港 SOF 签署', level: 'mid', done: true },
+            { text: '离港文件归档', level: 'low', done: true },
+          ],
+        },
+        {
+          id: 'load-2', nodeId: 3, sequence: 2, name: 'NANTONG', code: 'CNNTG', eta: '05-15 19:00', status: '作业中',
+          items: [
+            { text: '委托装港代理', level: 'high', done: true },
+            { text: '录入使费预估', level: 'high', done: true },
+            { text: '获取港口资料', level: 'low', done: true },
+            { text: '申请港口优惠', level: 'high', doing: true },
+            { text: '监控洗舱验舱', level: 'high', doing: true },
+            { text: '装货进度与货量监控', level: 'mid' },
+            { text: '提单签发', level: 'high' },
+            { text: '装港 SOF 签署', level: 'mid' },
+          ],
+        },
+        {
+          id: 'load-3', nodeId: 3, sequence: 3, name: 'TAIZHOU', code: 'CNTZO', eta: '05-20 08:00', status: '待抵港',
+          items: [
+            { text: '委托装港代理', level: 'high' },
+            { text: '确认靠泊窗口', level: 'high' },
+            { text: '申请港口优惠', level: 'high' },
+            { text: '确认本港装货数量', level: 'mid' },
+            { text: '更新多港配载计划', level: 'mid' },
+            { text: '准备 NOR 与港口文件', level: 'low' },
+          ],
+        },
+        {
+          id: 'discharge-1', nodeId: 5, sequence: 1, name: 'SINGAPORE', code: 'SGSIN', eta: '06-02 14:00', status: '待抵港',
+          items: [
+            { text: '委托卸港代理', level: 'high' },
+            { text: '确认靠泊计划', level: 'high' },
+            { text: '确认本港卸货数量', level: 'mid' },
+            { text: '准备放货指令', level: 'high' },
+            { text: '指导船长递交 NOR', level: 'mid' },
+            { text: '卸港 SOF 签署', level: 'mid' },
+          ],
+        },
+        {
+          id: 'discharge-2', nodeId: 5, sequence: 2, name: 'GHENT', code: 'BEGNE', eta: '06-18 09:00', status: '待抵港',
+          items: [
+            { text: '委托卸港代理', level: 'high' },
+            { text: '确认最终卸货计划', level: 'high' },
+            { text: '确认剩余货量', level: 'mid' },
+            { text: '准备放货指令', level: 'high' },
+            { text: '安排卸港检验', level: 'mid' },
+            { text: '航次卸货文件归档', level: 'low' },
+          ],
         },
       ],
 
@@ -2026,7 +2117,7 @@ createApp({
       return this.dispatchPanels.filter(panel => panel.custom && panel.visible)
     },
     overallStats() {
-      const total = this.nodes.reduce((s, n) => s + n.items.length, 0)
+      const total = this.nodes.reduce((s, n) => s + this.nodeItemCount(n), 0)
       const done = this.nodes.reduce((s, n) => s + this.nodeDoneCount(n), 0)
       return {
         total,
@@ -2038,7 +2129,62 @@ createApp({
       }
     },
     activeNode() {
-      return this.nodes.find(n => n.id === this.activeNodeId) || this.nodes[0]
+      const node = this.nodes.find(n => n.id === this.activeNodeId) || this.nodes[0]
+      const port = this.portCalls.find(p => p.nodeId === node.id && p.id === this.activePortId)
+      return port ? { ...node, items: port.items } : node
+    },
+    activePortCalls() {
+      return this.portCalls.filter(port => port.nodeId === this.activeNodeId)
+    },
+    activePortCall() {
+      return this.activePortCalls.find(port => port.id === this.activePortId) || this.activePortCalls[0] || null
+    },
+    workflowSteps() {
+      const steps = []
+      this.nodes.forEach(node => {
+        const ports = this.portCalls.filter(port => port.nodeId === node.id)
+        if (ports.length) {
+          const makePortStep = (port) => {
+            const done = this.portDoneCount(port)
+            return {
+              key: port.id,
+              kind: 'port',
+              nodeId: node.id,
+              portId: port.id,
+              title: `${node.id === 3 ? '装港' : '卸港'} ${port.sequence}`,
+              subtitle: `${port.name} · ${done}/${port.items.length}`,
+              status: port.status === '已完成' ? 'done' : port.status === '作业中' ? 'active' : 'pending',
+              percent: this.portPercent(port),
+            }
+          }
+          const children = ports.map(port => makePortStep(port))
+          const done = ports.reduce((sum, port) => sum + this.portDoneCount(port), 0)
+          const total = ports.reduce((sum, port) => sum + port.items.length, 0)
+          const status = children.every(child => child.status === 'done') ? 'done' : children.some(child => child.status === 'active') ? 'active' : 'pending'
+          steps.push({
+            key: `group-${node.id}`,
+            kind: 'group',
+            nodeId: node.id,
+            portId: null,
+            title: node.id === 3 ? '装港作业' : '卸港作业',
+            subtitle: `${ports.length}港 · ${done}/${total}`,
+            status,
+            percent: total ? Math.round(done / total * 100) : 0,
+            children,
+          })
+        } else {
+          steps.push({
+            key: `node-${node.id}`,
+            nodeId: node.id,
+            portId: null,
+            title: node.title,
+            subtitle: `${this.nodePercent(node)}% · ${this.nodeDoneCount(node)}/${this.nodeItemCount(node)}`,
+            status: node.status,
+            percent: this.nodePercent(node),
+          })
+        }
+      })
+      return steps
     },
     activeVessel() {
       return this.vessels.find(v => v.active) || this.vessels[0]
@@ -2222,13 +2368,41 @@ createApp({
       }
     },
     nodeDoneCount(node) {
+      const ports = this.portCalls.filter(port => port.nodeId === node.id)
+      if (ports.length) return ports.reduce((sum, port) => sum + this.portDoneCount(port), 0)
       return node.items.filter(i => this.isItemDone(node, i)).length
     },
+    nodeItemCount(node) {
+      const ports = this.portCalls.filter(port => port.nodeId === node.id)
+      return ports.length ? ports.reduce((sum, port) => sum + port.items.length, 0) : node.items.length
+    },
     nodePercent(node) {
-      return Math.round(this.nodeDoneCount(node) / node.items.length * 100)
+      const total = this.nodeItemCount(node)
+      return total ? Math.round(this.nodeDoneCount(node) / total * 100) : 0
     },
     // ── Step-Tab 流程导航 ──
-    selectNode(id) { this.activeNodeId = id },
+    selectNode(id) {
+      this.activeNodeId = id
+      const ports = this.portCalls.filter(port => port.nodeId === id)
+      if (ports.length && !ports.some(port => port.id === this.activePortId)) {
+        this.activePortId = ports.find(port => port.status === '作业中')?.id || ports[0].id
+      }
+    },
+    selectWorkflowStep(step) {
+      this.activeNodeId = step.nodeId
+      if (step.portId) this.activePortId = step.portId
+    },
+    togglePortGroup(nodeId) {
+      this.expandedPortGroups[nodeId] = !this.expandedPortGroups[nodeId]
+    },
+    isActiveWorkflowStep(step) {
+      return this.activeNodeId === step.nodeId && (!step.portId || this.activePortId === step.portId)
+    },
+    workflowRingColor(step) {
+      if (step.status === 'done') return '#10b981'
+      if (this.isActiveWorkflowStep(step)) return '#60a5fa'
+      return '#cbd5e1'
+    },
     isActiveNode(node) { return node.id === this.activeNodeId },
     ringColor(node) {
       if (node.status === 'done') return '#10b981'
@@ -2260,6 +2434,12 @@ createApp({
     },
     startTask(node, item) { item.doing = true },
     completeTask(node, item) { item.done = true; item.doing = false },
+    portDoneCount(port) {
+      return port.items.filter(item => item.done).length
+    },
+    portPercent(port) {
+      return port.items.length ? Math.round(this.portDoneCount(port) / port.items.length * 100) : 0
+    },
     priorityTag(item) {
       if (item.level === 'high') return { label: '高优', cls: 'bg-red-50 text-red-600 border-red-200' }
       if (item.level === 'mid') return { label: '中优', cls: 'bg-amber-50 text-amber-600 border-amber-200' }
