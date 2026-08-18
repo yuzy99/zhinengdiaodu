@@ -199,6 +199,16 @@
   }
   .dispatch-table td:first-child { border-left: 1px solid #e2e8f0; border-radius: 0 0 0 8px; }
   .dispatch-table td:last-child { border-right: 1px solid #e2e8f0; border-radius: 0 0 8px 0; }
+  .dispatch-table tbody tr:nth-child(even) td { background: #f8fafc; }
+  .dispatch-table tbody tr:hover td { background: #eff6ff; }
+  .dispatch-table tbody tr.is-selected td { background: #dbeafe; }
+  .dispatch-table tbody td { color: #475569; border-right: 1px solid #dbeafe; white-space: nowrap; }
+  .dispatch-table tbody td:last-child { border-right: 1px solid #e2e8f0; }
+  .dispatch-panels .dispatch-fuel-panel { grid-column: 1 / -1; order: 1; }
+  .dispatch-panels .dispatch-calc-panel { grid-column: 1 / -1; order: 2; }
+  .dispatch-panels .dispatch-voyage-panel { grid-column: 1 / -1; order: 3; }
+  .dispatch-panels .dispatch-cost-panel { order: 4; }
+  .dispatch-panels .dispatch-special-panel { order: 5; }
   .dispatch-dashboard .h-12 { height: 2.75rem; }
   .dispatch-dashboard .h-11 { height: 2.25rem; }
   .dispatch-dashboard .h-9 { height: 2rem; }
@@ -645,10 +655,22 @@
 
       <!-- ════════ DISPATCH TAB: 调度工作台 ════════ -->
       <div v-if="activeNav === 'dispatch'" class="dispatch-dashboard flex-1 min-w-0 min-h-0 overflow-y-auto slim-scroll bg-slate-100">
-        <div class="p-4 space-y-4">
+        <div class="h-11 shrink-0 bg-white border-b border-slate-200 flex items-stretch px-3 overflow-x-auto slim-scroll">
+          <button v-for="item in dispatchModuleTabs" :key="item.id" @click="dispatchModuleTab = item.id"
+            :class="['relative shrink-0 min-w-[130px] px-4 flex items-center justify-center gap-2 border-x border-transparent text-[12px] font-medium transition-colors', dispatchModuleTab === item.id ? 'text-corp-700 bg-blue-50/70 border-slate-200' : 'text-slate-600 hover:text-corp-700 hover:bg-slate-50']">
+            <svg v-if="item.id === 'voyage-management'" class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M9.75 3.75H6.375A1.875 1.875 0 004.5 5.625v14.25c0 1.036.84 1.875 1.875 1.875h11.25c1.035 0 1.875-.84 1.875-1.875V5.625a1.875 1.875 0 00-1.875-1.875H14.25M9.75 3.75a2.25 2.25 0 004.5 0M9.75 3.75a2.25 2.25 0 014.5 0" /></svg>
+            <svg v-else-if="item.id === 'operating-voyage'" class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" /></svg>
+            <svg v-else-if="item.id === 'ship-report'" class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M8.25 12h7.5m-7.5 3h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            <svg v-else-if="item.id === 'unsubmitted-stats'" class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+            <svg v-else class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 9h18M5.25 5.25h13.5A2.25 2.25 0 0121 7.5v11.25A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 18.75V7.5a2.25 2.25 0 012.25-2.25z" /></svg>
+            <span>{{ item.label }}</span>
+            <span v-if="dispatchModuleTab === item.id" class="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-corp-600"></span>
+          </button>
+        </div>
+        <div v-if="dispatchModuleTab === 'voyage-management'" class="dispatch-panels p-4 grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
 
           <!-- 航次管理查询 -->
-          <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <section class="dispatch-voyage-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
               <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800">
                 <span class="w-7 h-7 rounded-lg bg-blue-50 text-corp-600 flex items-center justify-center">
@@ -656,7 +678,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />
                   </svg>
                 </span>
-                航次管理查询
+                调度-我的船舶航次
               </h2>
               <div class="flex items-center gap-1 text-slate-400">
                 <button @click="dispatchCollapsed.voyage = !dispatchCollapsed.voyage" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.voyage ? '展开航次管理查询' : '收起航次管理查询'">
@@ -691,19 +713,29 @@
                   </select>
                 </label>
               </div>
-              <div class="overflow-x-auto slim-scroll pb-1">
+              <div class="max-h-[330px] overflow-auto slim-scroll pb-1">
                 <table class="dispatch-table min-w-[1460px]">
                   <thead><tr>
-                    <th>船舶名称</th><th>航次</th><th>开始港</th><th>航次起始时间（G）</th><th>结束港</th><th>航次完成时间（G）</th><th>港口名称</th><th>时区</th><th>目的</th><th>抵港时间</th><th>离港时间</th><th>装/卸货开始时间</th><th>装/卸货完成时间</th><th>加油开始时间</th><th>加油结束时间</th><th>创建人</th><th>操作</th>
+                    <th class="w-8"></th><th>船舶名称</th><th>航次</th><th>开始港</th><th>航次起始时间（G）</th><th>结束港</th><th>航次完成时间（G）</th><th>港口名称</th><th>时区</th><th>目的</th><th>抵港时间</th><th>离港时间</th><th>装/卸货开始时间</th><th>装/卸货完成时间</th><th>加油开始时间</th><th>加油结束时间</th><th>创建人</th><th>操作</th>
                   </tr></thead>
-                  <tbody><tr><td colspan="17">暂无数据</td></tr></tbody>
+                  <tbody>
+                    <tr v-for="row in dispatchVoyageRows" :key="row.ship + row.voyage">
+                      <td><svg class="w-3.5 h-3.5 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5.25l7.5 6.75L9 18.75" /></svg></td>
+                      <td class="font-semibold text-slate-700">{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.startPort }}</td>
+                      <td :class="row.startAlert ? '!text-red-500 font-medium' : ''">{{ row.startTime }}</td><td>{{ row.endPort }}</td>
+                      <td :class="row.completeAlert ? '!text-red-500 font-medium' : ''">{{ row.completeTime }}</td><td>{{ row.port }}</td><td>{{ row.zone }}</td><td>{{ row.purpose }}</td>
+                      <td :class="row.arrivalAlert ? '!text-red-500 font-medium' : ''">{{ row.arrival }}</td><td :class="row.departureAlert ? '!text-red-500 font-medium' : ''">{{ row.departure }}</td>
+                      <td>{{ row.cargoStart }}</td><td>{{ row.cargoEnd }}</td><td>{{ row.fuelStart }}</td><td>{{ row.fuelEnd }}</td><td>{{ row.creator }}</td>
+                      <td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开航次"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button><button title="查看明细"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button></div></td>
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             </div>
           </section>
 
           <!-- 调度-航次测算 -->
-          <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <section class="dispatch-calc-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
               <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800">
                 <span class="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
@@ -727,15 +759,17 @@
                 <label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.calcScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>我的科室</option><option>我负责的航次</option><option>全部航次</option></select></label>
                 <label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">经营公司：</span><select v-model="dispatchFilters.company" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>全部公司</option><option>中远海运散运</option><option>广州远洋</option></select></label>
               </div>
-              <div class="overflow-x-auto slim-scroll pb-1">
-                <table class="dispatch-table min-w-[980px]"><thead><tr><th>经营公司</th><th>船舶</th><th>航次</th><th>航次类型</th><th>测算2.0</th><th>测算4.0</th><th>调度</th><th>航次结束时间</th><th>操作</th></tr></thead><tbody><tr><td colspan="9">暂无数据</td></tr></tbody></table>
+              <div class="max-h-[260px] overflow-auto slim-scroll pb-1">
+                <table class="dispatch-table min-w-[980px]"><thead><tr><th>经营公司</th><th>船舶</th><th>航次</th><th>航次类型</th><th>测算2.0</th><th>测算4.0</th><th>调度</th><th>航次结束时间</th><th>操作</th></tr></thead><tbody>
+                  <tr v-for="row in dispatchCalcRows" :key="row.ship + row.type" :class="row.selected ? 'is-selected' : ''"><td>{{ row.company }}</td><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.type }}</td><td></td><td><svg class="w-3.5 h-3.5 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></td><td>{{ row.dispatcher }}</td><td>{{ row.endTime }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button><button title="编辑"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897L18.55 2.8" /></svg></button></div></td></tr>
+                </tbody></table>
               </div>
             </div>
           </section>
 
-          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+          <div class="contents">
             <!-- 调度-使费业务 -->
-            <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <section class="dispatch-cost-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
               <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
                 <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3.75h12M6 8.25h12M8.25 3.75v16.5m7.5-16.5v16.5M5.25 20.25h13.5" /></svg></span>调度-使费业务</h2>
                 <div class="flex items-center gap-1 text-slate-400">
@@ -747,13 +781,15 @@
               <div v-show="!dispatchCollapsed.cost" class="px-4 pb-4">
                 <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll"><button v-for="tab in dispatchCostTabs" :key="tab.id" @click="dispatchCostTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchCostTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">{{ tab.label }} <span :class="dispatchCostTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span></button></div>
                 <div class="py-3 max-w-[420px]"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.costScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>全部航次</option><option>我的科室</option><option>我负责的航次</option></select></label></div>
-                <div class="overflow-x-auto slim-scroll pb-1"><table class="dispatch-table min-w-[780px]"><thead><tr><th>船舶</th><th>航次</th><th>港口名称</th><th>目的</th><th>优惠项目</th><th>说明</th><th>预抵港时间</th><th>操作</th></tr></thead><tbody><tr><td colspan="8">暂无数据</td></tr></tbody></table></div>
+                <div class="max-h-[250px] overflow-auto slim-scroll pb-1"><table class="dispatch-table min-w-[780px]"><thead><tr><th>船舶</th><th>航次</th><th>港口名称</th><th>目的</th><th>优惠项目</th><th>说明</th><th>预抵港时间</th><th>操作</th></tr></thead><tbody>
+                  <tr v-for="row in dispatchCostRows" :key="row.ship + row.voyage"><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.port }}</td><td>{{ row.purpose }}</td><td>{{ row.discount }}</td><td>{{ row.note }}</td><td>{{ row.eta }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button></div></td></tr>
+                </tbody></table></div>
               </div>
             </section>
 
-            <div class="space-y-4">
+            <div class="contents">
               <!-- 调度-燃油业务 -->
-              <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <section class="dispatch-fuel-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
                   <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3.75h6.75a2.25 2.25 0 012.25 2.25v14.25h-9V3.75zM8.25 7.5h6m1.5 1.5h1.5a2.25 2.25 0 012.25 2.25v5.625a1.875 1.875 0 01-3.75 0V12" /></svg></span>调度-燃油业务</h2>
                   <div class="flex items-center gap-1 text-slate-400">
@@ -770,7 +806,7 @@
               </section>
 
               <!-- 调度-特殊航次 -->
-              <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <section class="dispatch-special-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
                   <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18m9-9H3m15.364-6.364L5.636 18.364m0-12.728l12.728 12.728" /></svg></span>调度-特殊航次</h2>
                   <div class="flex items-center gap-1 text-slate-400">
@@ -782,10 +818,21 @@
                 <div v-show="!dispatchCollapsed.special" class="px-4 pb-4">
                   <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll"><button v-for="tab in dispatchSpecialTabs" :key="tab.id" @click="dispatchSpecialTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchSpecialTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">{{ tab.label }} <span :class="dispatchSpecialTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span></button></div>
                   <div class="py-3 max-w-[420px]"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.specialScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>我的科室</option><option>我负责的航次</option><option>全部航次</option></select></label></div>
-                  <div class="overflow-x-auto slim-scroll pb-1"><table class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>航线</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody><tr><td colspan="6">暂无数据</td></tr></tbody></table></div>
+                  <div class="max-h-[250px] overflow-auto slim-scroll pb-1"><table class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>航线</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody>
+                    <tr v-for="row in dispatchSpecialRows" :key="row.ship + row.voyage"><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.route }}</td><td>{{ row.arrival }}</td><td>{{ row.departure }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button></div></td></tr>
+                  </tbody></table></div>
                 </div>
               </section>
             </div>
+          </div>
+        </div>
+        <div v-else class="p-4">
+          <div class="h-[220px] rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col items-center justify-center text-center">
+            <div class="w-11 h-11 rounded-xl bg-blue-50 text-corp-600 flex items-center justify-center mb-3">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            </div>
+            <div class="text-[14px] font-bold text-slate-700">{{ dispatchModuleTabs.find(item => item.id === dispatchModuleTab)?.label }}</div>
+            <div class="mt-1 text-[12px] text-slate-400">暂无数据</div>
           </div>
         </div>
       </div>
@@ -1464,21 +1511,29 @@ createApp({
       ],
 
       /* ── 调度工作台 Tab ── */
+      dispatchModuleTabs: [
+        { id: 'voyage-management', label: '航次管理查询' },
+        { id: 'operating-voyage', label: '经营航次查询' },
+        { id: 'ship-report', label: '船舶报文' },
+        { id: 'unsubmitted-stats', label: '4.0未提交统计' },
+        { id: 'off-hire', label: '停租登记' },
+      ],
+      dispatchModuleTab: 'voyage-management',
       dispatchVoyageTabs: [
-        { id: 'unfinished', label: '未完航次', count: '0/0' },
-        { id: 'unplanned', label: '无航次安排', count: '0' },
-        { id: 'delivery', label: '交船登记', count: '0' },
-        { id: 'cargo-check', label: '货量校验提醒', count: '0' },
+        { id: 'unfinished', label: '未完航次', count: '14/71' },
+        { id: 'unplanned', label: '无航次安排', count: '11' },
+        { id: 'delivery', label: '交船登记', count: '4' },
+        { id: 'cargo-check', label: '货量校验提醒', count: '25' },
         { id: 'laycan', label: '超受载期', count: '0' },
-        { id: 'certificate', label: '到期/预警证书', count: '883/445' },
+        { id: 'certificate', label: '到期/预警证书', count: '5/3' },
       ],
       dispatchCalcTabs: [
-        { id: 'pending', label: '待新建', count: '0' },
+        { id: 'pending', label: '待新建', count: '6' },
         { id: 'deviation', label: '预实测期和水平偏差', count: '' },
       ],
       dispatchCostTabs: [
-        { id: 'discount', label: '预选港口使费优惠', count: '0' },
-        { id: 'owner-cost', label: '待导入船东费用', count: '0' },
+        { id: 'discount', label: '预选港口使费优惠', count: '13' },
+        { id: 'owner-cost', label: '待导入船东费用', count: '8' },
       ],
       dispatchFuelTabs: [
         { id: 'report', label: '补录加油报', count: '0' },
@@ -1486,9 +1541,9 @@ createApp({
         { id: 'carbon', label: '碳税消耗', count: '' },
       ],
       dispatchSpecialTabs: [
-        { id: 'eua', label: 'EUA', count: '0' },
+        { id: 'eua', label: 'EUA', count: '7' },
         { id: 'suez', label: '苏伊士运河预折扣', count: '51' },
-        { id: 'repair', label: '修船', count: '0' },
+        { id: 'repair', label: '修船', count: '1' },
         { id: 'special', label: '特殊处理', count: '0' },
       ],
       dispatchVoyageTab: 'unfinished',
@@ -1497,11 +1552,49 @@ createApp({
       dispatchFuelTab: 'report',
       dispatchSpecialTab: 'eua',
       dispatchFilters: {
-        voyageScope: '全部航次', route: '请选择', calcScope: '我的科室', company: '全部公司',
-        costScope: '全部航次', fuelScope: '全部航次', specialScope: '我的科室',
+        voyageScope: '我的科室', route: '请选择', calcScope: '我的科室', company: '全部公司',
+        costScope: '我的科室', fuelScope: '全部航次', specialScope: '我的科室',
       },
-      dispatchCollapsed: { voyage: false, calc: false, cost: false, fuel: false, special: false },
+      dispatchCollapsed: { voyage: false, calc: false, cost: false, fuel: true, special: false },
       dispatchRefreshing: { voyage: false, calc: false, cost: false, fuel: false, special: false },
+      dispatchCalcRows: [
+        { company: '港达公司', ship: 'MARINE CRYSTAL-613582', voyage: '11', type: 'BTB', dispatcher: '陈亮', endTime: '2026-08-17 06:06:00' },
+        { company: '港达公司', ship: 'MARINE CRYSTAL-613582', voyage: '11', type: 'VC', dispatcher: '陈亮', endTime: '2026-08-17 06:06:00', selected: true },
+        { company: '港达公司', ship: 'GREAT BLOSSOM-613120', voyage: '13', type: 'TCT', dispatcher: '于波', endTime: '2026-08-16 04:30:00' },
+        { company: '港达公司', ship: '梅岛海-T03118', voyage: '103', type: 'VC', dispatcher: '陈亮', endTime: '2026-08-15 03:35:00' },
+        { company: '港达公司', ship: 'HECTOR-602127', voyage: '3', type: 'VC', dispatcher: '苏鑫华', endTime: '2026-08-14 04:06:00' },
+        { company: '港达公司', ship: 'BBG GUIJIANG-613203', voyage: '14', type: 'VC', dispatcher: '王仲', endTime: '2026-08-13 19:48:00' },
+      ],
+      dispatchVoyageRows: [
+        { ship: '京鲁海', voyage: '80', startPort: 'JINGTANG', startTime: '2026-06-22 16:15', endPort: 'DALIAN', completeTime: 'E2026-08-18 01:54', port: 'JINGTANG', zone: '+8', purpose: '', arrival: '2026-06-03 13:15', departure: '2026-06-22 23:30', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '叶宏光', completeAlert: true },
+        { ship: '京鲁海', voyage: '81', startPort: 'DALIAN', startTime: 'E2026-08-18 01:54', endPort: '', completeTime: 'E2026-10-25 07:45', port: 'HUANGHUA', zone: '+08', purpose: 'L', arrival: '2026-08-20 06:00', departure: '2026-08-20 06:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '叶宏光', startAlert: true },
+        { ship: '武竹海', voyage: '153', startPort: 'ZHANJIANG', startTime: '2026-04-20 12:10', endPort: '', completeTime: 'E2026-08-17 11:00', port: 'NANTONG', zone: '+8', purpose: 'D', arrival: '2026-08-14 11:45', departure: 'E2026-08-14 11:45', cargoStart: '2026-08-15 16:58', cargoEnd: '2026-08-17 19:00', fuelStart: '2026-08-15 09:10:00', fuelEnd: '2026-08-15 12:30:00', creator: '于波', completeAlert: true, departureAlert: true },
+        { ship: 'GEOPRIDE', voyage: '1', startPort: 'KARAIKAL', startTime: '2026-06-08 15:30', endPort: '', completeTime: 'E2026-08-31 14:30', port: 'SINGAPORE', zone: '+07', purpose: 'B', arrival: 'E2026-08-17 18:25', departure: 'E2026-08-18 18:25', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '朱国海', arrivalAlert: true },
+        { ship: 'MAGSENGER 12', voyage: '24', startPort: 'TIANJIN', startTime: '2026-07-13 04:00', endPort: '', completeTime: 'E2026-08-16 15:50', port: 'TIANJIN', zone: '+08', purpose: 'D', arrival: '2026-08-24 12:00', departure: '2026-08-24 12:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '李和平', completeAlert: true },
+        { ship: 'MAGSENGER 12', voyage: '22', startPort: 'ZHUHAI', startTime: '2026-07-12 10:50', endPort: '', completeTime: 'E2026-08-20 08:05', port: 'CHANGJIANGKOU', zone: '+08', purpose: 'P', arrival: 'E2026-08-17 20:00', departure: 'E2026-08-18 08:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '李和平', arrivalAlert: true, departureAlert: true },
+        { ship: 'YUE DIAN 8', voyage: '2', startPort: 'ZHUHAI', startTime: 'E2026-08-18 03:30', endPort: '', completeTime: 'E2026-09-15 23:07', port: 'HUANAI', zone: '+08', purpose: 'DI', arrival: 'E2026-08-18 11:30', departure: 'E2026-08-18 11:30', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '李岩', startAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: 'MODEST', voyage: '2', startPort: 'FLUSHING', startTime: 'E2026-05-16 23:18', endPort: '', completeTime: 'E2026-08-23 00:00', port: 'CHANGJIANGKOU', zone: '+08', purpose: 'P', arrival: 'E2026-08-15 13:00', departure: '2026-08-19 10:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '王仲', startAlert: true, arrivalAlert: true },
+        { ship: 'CL JIUJIANG', voyage: '17', startPort: 'PARANAGUA', startTime: '2026-06-21 15:00', endPort: '', completeTime: 'E2026-08-17 19:40', port: 'TILBURY', zone: '+1', purpose: 'D', arrival: '2026-08-07 17:24', departure: 'E2026-08-07 17:24', cargoStart: '2026-08-07 20:20', cargoEnd: '2026-08-17 20:40', fuelStart: '', fuelEnd: '', creator: '王仲', completeAlert: true, departureAlert: true },
+        { ship: 'CL SHANDONG', voyage: '16', startPort: 'PECEM', startTime: '2026-07-14 17:24', endPort: '', completeTime: 'E2026-08-18 13:00', port: 'PORT ALFRED(CA)', zone: '-4', purpose: 'D', arrival: '2026-08-07 09:36', departure: 'E2026-08-18 02:00', cargoStart: '2026-08-14 19:05', cargoEnd: '2026-08-18 01:00', fuelStart: '', fuelEnd: '', creator: '王仲', departureAlert: true },
+      ],
+      dispatchCostRows: [
+        { ship: 'RUBINA-613639', voyage: '6', port: 'ZHENJIANG', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '' },
+        { ship: 'CHAILEASE BLOSSOM-613640', voyage: '1', port: 'GUANGZHOU', purpose: 'D', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
+        { ship: 'GREAT FLOURISH-613120', voyage: '11', port: 'TIANJIN', purpose: 'D', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
+        { ship: 'HYDRUS-613885', voyage: '1', port: 'ZHENJIANG', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '' },
+        { ship: '京鲁海-P09005', voyage: '81', port: 'TIANJIN', purpose: 'L', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
+        { ship: 'MAGSENGER 12-613236', voyage: '24', port: 'TIANJIN', purpose: 'D', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
+        { ship: 'CL LOUDI-613672', voyage: '6', port: 'ZHENJIANG', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '' },
+      ],
+      dispatchSpecialRows: [
+        { ship: 'FENG HUANG FENG', voyage: '103', route: '岚津加勒比', arrival: '2026-08-03 22:24:00', departure: 'E2026-10-02 00:32:47' },
+        { ship: 'CL JIUJIANG', voyage: '17', route: '巴巴荷美', arrival: '2026-06-21 15:00:00', departure: 'E2026-08-17 19:40:00' },
+        { ship: 'BBG GUIJIANG', voyage: '15', route: '法直美巴', arrival: '2026-08-13 19:48:00', departure: 'E2026-09-26 13:00:00' },
+        { ship: 'BBG GUIJIANG', voyage: '14', route: '英美美法直法', arrival: '2026-06-06 15:18:00', departure: '2026-08-13 19:48:00' },
+        { ship: 'GREAT FLOURISH', voyage: '7', route: '意直伦德德', arrival: '2025-10-08 19:10:00', departure: '2025-11-23 02:30:00' },
+        { ship: 'MEDI OITA', voyage: '9', route: '法美土土', arrival: '2026-07-29 17:06:00', departure: 'E2026-10-02 01:03:00' },
+        { ship: 'MEDI OITA', voyage: '8', route: '巴巴群法法', arrival: '2026-06-13 13:42:00', departure: '2026-07-29 17:06:00' },
+      ],
 
       loading: true,        // 骨架屏
       animated: false,      // 进度条动效开关（挂载后从 0 增长）
