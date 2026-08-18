@@ -405,22 +405,22 @@
       <div class="px-5 pb-3 shrink-0">
         <div class="workflow-scroll flex items-center overflow-x-auto rounded-2xl border border-slate-200/70 bg-white/70 p-1.5 pb-2.5">
           <template v-for="(step, i) in workflowSteps" :key="step.key">
-          <div v-if="step.kind === 'group'" :class="['flex shrink-0 items-center rounded-xl border p-1 transition-all', expandedPortGroups[step.nodeId] ? 'border-blue-300 bg-blue-50/60 shadow-sm' : 'border-slate-200 bg-white']">
-            <button @click="togglePortGroup(step.nodeId)" :class="['flex min-w-[118px] shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all', isActiveWorkflowStep(step) ? 'bg-corp-900 text-white shadow-sm' : 'text-slate-700 hover:bg-blue-50']">
-              <span :class="['flex h-6 w-6 shrink-0 items-center justify-center rounded-lg', isActiveWorkflowStep(step) ? 'bg-white/15 text-sky-200' : 'bg-blue-100 text-blue-600']">
+          <div v-if="step.kind === 'group'" :class="['flex shrink-0 items-center rounded-xl border p-1 transition-all', expandedPortGroups[step.nodeId] ? 'border-blue-200 bg-blue-50/25' : 'border-slate-200 bg-white']">
+            <button @click="togglePortGroup(step.nodeId)" :class="['flex shrink-0 items-center text-left transition-all', expandedPortGroups[step.nodeId] ? 'min-w-[68px] gap-1 bg-transparent px-1.5 py-1 text-slate-400 hover:text-blue-600' : 'min-w-[118px] gap-2 rounded-lg px-2 py-1.5 text-slate-700 hover:bg-blue-50']">
+              <span v-if="!expandedPortGroups[step.nodeId]" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 6.75h15M6.75 3.75v6m10.5-6v6M5.25 12h13.5M5.25 16.5h13.5M5.25 21h13.5" /></svg>
               </span>
-              <span class="min-w-0 flex-1"><span class="block truncate text-[11.5px] font-bold leading-tight">{{ step.title }}</span><span :class="['mt-0.5 block truncate text-[9.5px]', isActiveWorkflowStep(step) ? 'text-slate-300' : 'text-slate-400']">{{ step.subtitle }}</span></span>
-              <span :class="['text-[9px] font-semibold', isActiveWorkflowStep(step) ? 'text-sky-200' : 'text-blue-500']">{{ expandedPortGroups[step.nodeId] ? '收起' : '展开' }}</span>
+              <span class="min-w-0 flex-1"><span :class="['block truncate font-bold leading-tight', expandedPortGroups[step.nodeId] ? 'text-[10px] text-slate-400' : 'text-[11.5px]']">{{ step.title }}</span><span v-if="!expandedPortGroups[step.nodeId]" class="mt-0.5 block truncate text-[9.5px] text-slate-400">{{ step.subtitle }}</span></span>
+              <span :class="['font-semibold text-blue-500', expandedPortGroups[step.nodeId] ? 'text-[8.5px]' : 'text-[9px]']">{{ expandedPortGroups[step.nodeId] ? '收起' : '展开' }}</span>
             </button>
             <template v-if="expandedPortGroups[step.nodeId]">
-              <span class="mx-1 h-0 w-4 shrink-0 border-t-2 border-dotted border-blue-300"></span>
+              <span class="relative mx-1 h-0 w-6 shrink-0 border-t-2 border-dotted border-blue-300"><svg class="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 bg-blue-50 p-0.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 14.25h18l-2.5 4.5h-13L3 14.25zM6.5 14.25V9.5h3.25v4.75m.75 0V8h3.25v6.25m.75 0V9.5h3.25v4.75M5 19.5c1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0" /></svg></span>
               <template v-for="(portStep, portIndex) in step.children" :key="portStep.key">
-                <button @click="selectWorkflowStep(portStep)" :class="['flex min-w-[112px] shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-all', isActiveWorkflowStep(portStep) ? 'bg-corp-900 text-white shadow-sm' : portStep.status === 'done' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-white text-slate-600 hover:bg-slate-100']">
-                  <svg viewBox="0 0 36 36" class="h-5 w-5 shrink-0"><circle cx="18" cy="18" r="15" fill="none" :stroke="isActiveWorkflowStep(portStep) ? 'rgba(255,255,255,0.22)' : '#e9eef5'" stroke-width="3.2"/><circle class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(portStep)" stroke-width="3.2" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? portStep.percent : 0)" transform="rotate(-90 18 18)"/><path v-if="portStep.status === 'done'" d="M12 18.5l3.4 3.4L24 13" fill="none" :stroke="isActiveWorkflowStep(portStep) ? '#fff' : '#10b981'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><text v-else x="18" y="19.2" text-anchor="middle" dominant-baseline="central" :fill="isActiveWorkflowStep(portStep) ? '#fff' : '#64748b'" font-size="11" font-weight="700">{{ portIndex + 1 }}</text></svg>
+                <button @click="selectWorkflowStep(portStep)" :class="['flex min-w-[120px] shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 transition-all', isActiveWorkflowStep(portStep) ? 'bg-corp-900 text-white shadow-md shadow-corp-900/15' : portStep.status === 'done' ? 'bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100' : 'bg-white text-slate-600 hover:bg-slate-100/70']">
+                  <svg viewBox="0 0 36 36" class="h-6 w-6 shrink-0"><circle cx="18" cy="18" r="15" fill="none" :stroke="isActiveWorkflowStep(portStep) ? 'rgba(255,255,255,0.22)' : '#e9eef5'" stroke-width="3.2"/><circle class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(portStep)" stroke-width="3.2" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? portStep.percent : 0)" transform="rotate(-90 18 18)"/><path v-if="portStep.status === 'done'" d="M12 18.5l3.4 3.4L24 13" fill="none" :stroke="isActiveWorkflowStep(portStep) ? '#fff' : '#10b981'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><text v-else x="18" y="19.2" text-anchor="middle" dominant-baseline="central" :fill="isActiveWorkflowStep(portStep) ? '#fff' : '#64748b'" :font-size="portStep.kind === 'transit' ? 9 : 11" font-weight="700">{{ portStep.kind === 'transit' ? '航' : Math.floor(portIndex / 2) + 1 }}</text></svg>
                   <span class="min-w-0"><span class="block truncate text-[10.5px] font-bold">{{ portStep.title }}</span><span :class="['mt-0.5 block max-w-[72px] truncate text-[9px]', isActiveWorkflowStep(portStep) ? 'text-slate-300' : 'text-slate-400']">{{ portStep.subtitle }}</span></span>
                 </button>
-                <span v-if="portIndex < step.children.length - 1" :class="['mx-1 h-0 w-4 shrink-0 border-t-2 border-dotted', portStep.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"></span>
+                <span v-if="portIndex < step.children.length - 1" :class="['relative mx-1 h-0 w-6 shrink-0 border-t-2 border-dotted', portStep.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"><svg :class="['absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 bg-blue-50 p-0.5', portStep.status === 'done' ? 'text-emerald-500' : 'text-slate-400']" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 14.25h18l-2.5 4.5h-13L3 14.25zM6.5 14.25V9.5h3.25v4.75m.75 0V8h3.25v6.25m.75 0V9.5h3.25v4.75M5 19.5c1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0" /></svg></span>
               </template>
             </template>
           </div>
@@ -446,7 +446,7 @@
               <span v-if="step.status !== 'done'" :class="['max-w-[70px] truncate tabular-nums leading-tight mt-0.5 text-[9.5px]', isActiveWorkflowStep(step) ? 'text-slate-300' : 'text-slate-400']">{{ step.subtitle }}</span>
             </div>
           </button>
-          <span v-if="i < workflowSteps.length - 1" :class="['mx-1 h-0 w-5 shrink-0 border-t-2 border-dotted', step.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"></span>
+          <span v-if="i < workflowSteps.length - 1" :class="['relative mx-1 h-0 w-7 shrink-0 border-t-2 border-dotted', step.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"><svg :class="['absolute left-1/2 top-1/2 h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 bg-white p-0.5', step.status === 'done' ? 'text-emerald-500' : 'text-slate-400']" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 14.25h18l-2.5 4.5h-13L3 14.25zM6.5 14.25V9.5h3.25v4.75m.75 0V8h3.25v6.25m.75 0V9.5h3.25v4.75M5 19.5c1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0" /></svg></span>
           </template>
         </div>
       </div>
@@ -1692,6 +1692,7 @@ createApp({
       ],
       flatLimit: 5, // 节点卡片默认展示条数
       activePortId: 'load-2',
+      activeTransitId: null,
       expandedPortGroups: { 3: false, 5: false },
 
       // ── 6 节点 CHECKLIST ──
@@ -2157,7 +2158,24 @@ createApp({
               percent: this.portPercent(port),
             }
           }
-          const children = ports.map(port => makePortStep(port))
+          const children = []
+          ports.forEach((port, portIndex) => {
+            children.push(makePortStep(port))
+            const nextPort = ports[portIndex + 1]
+            if (nextPort) {
+              children.push({
+                key: `transit-${port.id}-${nextPort.id}`,
+                kind: 'transit',
+                nodeId: 4,
+                portId: null,
+                transitId: `${port.id}-${nextPort.id}`,
+                title: '航行监控',
+                subtitle: `${port.name} → ${nextPort.name}`,
+                status: port.status === '已完成' ? 'done' : port.status === '作业中' ? 'active' : 'pending',
+                percent: port.status === '已完成' ? 100 : port.status === '作业中' ? 35 : 0,
+              })
+            }
+          })
           const done = ports.reduce((sum, port) => sum + this.portDoneCount(port), 0)
           const total = ports.reduce((sum, port) => sum + port.items.length, 0)
           const status = children.every(child => child.status === 'done') ? 'done' : children.some(child => child.status === 'active') ? 'active' : 'pending'
@@ -2390,13 +2408,17 @@ createApp({
     },
     selectWorkflowStep(step) {
       this.activeNodeId = step.nodeId
+      this.activeTransitId = step.kind === 'transit' ? step.transitId : null
       if (step.portId) this.activePortId = step.portId
     },
     togglePortGroup(nodeId) {
       this.expandedPortGroups[nodeId] = !this.expandedPortGroups[nodeId]
     },
     isActiveWorkflowStep(step) {
-      return this.activeNodeId === step.nodeId && (!step.portId || this.activePortId === step.portId)
+      if (step.kind === 'transit') return this.activeNodeId === step.nodeId && this.activeTransitId === step.transitId
+      if (step.kind === 'group') return this.activeNodeId === step.nodeId
+      if (step.portId) return this.activeNodeId === step.nodeId && this.activePortId === step.portId
+      return this.activeNodeId === step.nodeId && !this.activeTransitId
     },
     workflowRingColor(step) {
       if (step.status === 'done') return '#10b981'
