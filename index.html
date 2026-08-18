@@ -670,15 +670,15 @@
         <div v-if="dispatchModuleTab === 'voyage-management'" class="dispatch-panels p-4 grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
 
           <!-- 航次管理查询 -->
-          <section class="dispatch-voyage-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
+          <section v-show="isPanelVisible('voyage')" draggable="true" @dragstart="startPanelDrag($event, 'voyage')" @dragover.prevent @drop="dropPanel($event, 'voyage')" @dragend="endPanelDrag" :style="{ order: panelOrder('voyage') }" :class="['dispatch-voyage-panel dispatch-panel-card rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden', dispatchDragId === 'voyage' ? 'opacity-50' : '']">
+            <div draggable="true" class="relative h-12 px-4 flex items-center justify-between border-b border-slate-100 cursor-move">
               <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800">
                 <span class="w-7 h-7 rounded-lg bg-blue-50 text-corp-600 flex items-center justify-center">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l6.75-9 6.75 9M4.5 19.5h15M12 4.5v15" />
                   </svg>
                 </span>
-                调度-我的船舶航次
+                {{ panelTitle('voyage') }}
               </h2>
               <div class="flex items-center gap-1 text-slate-400">
                 <button @click="dispatchCollapsed.voyage = !dispatchCollapsed.voyage" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.voyage ? '展开航次管理查询' : '收起航次管理查询'">
@@ -687,9 +687,10 @@
                 <button @click="refreshDispatch('voyage')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新航次管理查询">
                   <svg class="w-4 h-4" :class="dispatchRefreshing.voyage ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg>
                 </button>
-                <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作">
+                <button @click.stop="togglePanelMenu('voyage')" draggable="false" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作">
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
                 </button>
+                <div v-if="dispatchPanelMenu === 'voyage'" class="absolute right-2 top-10 z-50 w-24 rounded-lg border border-slate-200 bg-white py-1 shadow-xl text-[12px] text-slate-600" @click.stop><button @click="openPanelEditor('add')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">添加</button><button @click="openPanelEditor('edit', 'voyage')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">编辑</button><button @click="removeDispatchPanel('voyage')" class="block w-full px-3 py-2 text-left hover:bg-red-50 hover:text-red-500">移除</button></div>
               </div>
             </div>
             <div v-show="!dispatchCollapsed.voyage" class="px-4 pb-4">
@@ -725,7 +726,7 @@
                       <td :class="row.startAlert ? '!text-red-500 font-medium' : ''">{{ row.startTime }}</td><td>{{ row.endPort }}</td>
                       <td :class="row.completeAlert ? '!text-red-500 font-medium' : ''">{{ row.completeTime }}</td><td>{{ row.port }}</td><td>{{ row.zone }}</td><td>{{ row.purpose }}</td>
                       <td :class="row.arrivalAlert ? '!text-red-500 font-medium' : ''">{{ row.arrival }}</td><td :class="row.departureAlert ? '!text-red-500 font-medium' : ''">{{ row.departure }}</td>
-                      <td>{{ row.cargoStart }}</td><td>{{ row.cargoEnd }}</td><td>{{ row.fuelStart }}</td><td>{{ row.fuelEnd }}</td><td>{{ row.creator }}</td>
+                      <td>{{ row.cargoStart }}</td><td>{{ row.cargoEnd }}</td><td>{{ row.fuelStart }}</td><td>{{ row.fuelEnd }}</td><td>{{ maskName(row.creator) }}</td>
                       <td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开航次"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button><button title="查看明细"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button></div></td>
                     </tr>
                   </tbody>
@@ -735,18 +736,19 @@
           </section>
 
           <!-- 调度-航次测算 -->
-          <section class="dispatch-calc-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
+          <section v-show="isPanelVisible('calc')" draggable="true" @dragstart="startPanelDrag($event, 'calc')" @dragover.prevent @drop="dropPanel($event, 'calc')" @dragend="endPanelDrag" :style="{ order: panelOrder('calc') }" :class="['dispatch-calc-panel dispatch-panel-card rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden', dispatchDragId === 'calc' ? 'opacity-50' : '']">
+            <div draggable="true" class="relative h-12 px-4 flex items-center justify-between border-b border-slate-100 cursor-move">
               <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800">
                 <span class="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 18.75h16.5M6 16.5V9.75m4 6.75V5.25m4 11.25v-4.5m4 4.5V7.5" /></svg>
                 </span>
-                调度-航次测算
+                {{ panelTitle('calc') }}
               </h2>
               <div class="flex items-center gap-1 text-slate-400">
                 <button @click="dispatchCollapsed.calc = !dispatchCollapsed.calc" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.calc ? '展开航次测算' : '收起航次测算'"><svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.calc ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg></button>
                 <button @click="refreshDispatch('calc')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新航次测算"><svg class="w-4 h-4" :class="dispatchRefreshing.calc ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg></button>
-                <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                <button @click.stop="togglePanelMenu('calc')" draggable="false" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                <div v-if="dispatchPanelMenu === 'calc'" class="absolute right-2 top-10 z-50 w-24 rounded-lg border border-slate-200 bg-white py-1 shadow-xl text-[12px] text-slate-600" @click.stop><button @click="openPanelEditor('add')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">添加</button><button @click="openPanelEditor('edit', 'calc')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">编辑</button><button @click="removeDispatchPanel('calc')" class="block w-full px-3 py-2 text-left hover:bg-red-50 hover:text-red-500">移除</button></div>
               </div>
             </div>
             <div v-show="!dispatchCollapsed.calc" class="px-4 pb-4">
@@ -761,7 +763,7 @@
               </div>
               <div class="max-h-[260px] overflow-auto slim-scroll pb-1">
                 <table class="dispatch-table min-w-[980px]"><thead><tr><th>经营公司</th><th>船舶</th><th>航次</th><th>航次类型</th><th>测算2.0</th><th>测算4.0</th><th>调度</th><th>航次结束时间</th><th>操作</th></tr></thead><tbody>
-                  <tr v-for="row in dispatchCalcRows" :key="row.ship + row.type" :class="row.selected ? 'is-selected' : ''"><td>{{ row.company }}</td><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.type }}</td><td></td><td><svg class="w-3.5 h-3.5 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></td><td>{{ row.dispatcher }}</td><td>{{ row.endTime }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button><button title="编辑"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897L18.55 2.8" /></svg></button></div></td></tr>
+                  <tr v-for="row in dispatchCalcRows" :key="row.ship + row.type" :class="row.selected ? 'is-selected' : ''"><td>{{ row.company }}</td><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.type }}</td><td></td><td><svg class="w-3.5 h-3.5 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></td><td>{{ maskName(row.dispatcher) }}</td><td>{{ row.endTime }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button><button title="编辑"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897L18.55 2.8" /></svg></button></div></td></tr>
                 </tbody></table>
               </div>
             </div>
@@ -769,13 +771,14 @@
 
           <div class="contents">
             <!-- 调度-使费业务 -->
-            <section class="dispatch-cost-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-              <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
-                <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3.75h12M6 8.25h12M8.25 3.75v16.5m7.5-16.5v16.5M5.25 20.25h13.5" /></svg></span>调度-使费业务</h2>
+            <section v-show="isPanelVisible('cost')" draggable="true" @dragstart="startPanelDrag($event, 'cost')" @dragover.prevent @drop="dropPanel($event, 'cost')" @dragend="endPanelDrag" :style="{ order: panelOrder('cost') }" :class="['dispatch-cost-panel dispatch-panel-card rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden', dispatchDragId === 'cost' ? 'opacity-50' : '']">
+              <div draggable="true" class="relative h-12 px-4 flex items-center justify-between border-b border-slate-100 cursor-move">
+                <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3.75h12M6 8.25h12M8.25 3.75v16.5m7.5-16.5v16.5M5.25 20.25h13.5" /></svg></span>{{ panelTitle('cost') }}</h2>
                 <div class="flex items-center gap-1 text-slate-400">
                   <button @click="dispatchCollapsed.cost = !dispatchCollapsed.cost" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.cost ? '展开使费业务' : '收起使费业务'"><svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.cost ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg></button>
                   <button @click="refreshDispatch('cost')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新使费业务"><svg class="w-4 h-4" :class="dispatchRefreshing.cost ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg></button>
-                  <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                  <button @click.stop="togglePanelMenu('cost')" draggable="false" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                  <div v-if="dispatchPanelMenu === 'cost'" class="absolute right-2 top-10 z-50 w-24 rounded-lg border border-slate-200 bg-white py-1 shadow-xl text-[12px] text-slate-600" @click.stop><button @click="openPanelEditor('add')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">添加</button><button @click="openPanelEditor('edit', 'cost')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">编辑</button><button @click="removeDispatchPanel('cost')" class="block w-full px-3 py-2 text-left hover:bg-red-50 hover:text-red-500">移除</button></div>
                 </div>
               </div>
               <div v-show="!dispatchCollapsed.cost" class="px-4 pb-4">
@@ -793,13 +796,14 @@
 
             <div class="contents">
               <!-- 调度-燃油业务 -->
-              <section class="dispatch-fuel-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
-                  <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3.75h6.75a2.25 2.25 0 012.25 2.25v14.25h-9V3.75zM8.25 7.5h6m1.5 1.5h1.5a2.25 2.25 0 012.25 2.25v5.625a1.875 1.875 0 01-3.75 0V12" /></svg></span>调度-燃油业务</h2>
+              <section v-show="isPanelVisible('fuel')" draggable="true" @dragstart="startPanelDrag($event, 'fuel')" @dragover.prevent @drop="dropPanel($event, 'fuel')" @dragend="endPanelDrag" :style="{ order: panelOrder('fuel') }" :class="['dispatch-fuel-panel dispatch-panel-card rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden', dispatchDragId === 'fuel' ? 'opacity-50' : '']">
+                <div draggable="true" class="relative h-12 px-4 flex items-center justify-between border-b border-slate-100 cursor-move">
+                  <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3.75h6.75a2.25 2.25 0 012.25 2.25v14.25h-9V3.75zM8.25 7.5h6m1.5 1.5h1.5a2.25 2.25 0 012.25 2.25v5.625a1.875 1.875 0 01-3.75 0V12" /></svg></span>{{ panelTitle('fuel') }}</h2>
                   <div class="flex items-center gap-1 text-slate-400">
                     <button @click="dispatchCollapsed.fuel = !dispatchCollapsed.fuel" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.fuel ? '展开燃油业务' : '收起燃油业务'"><svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.fuel ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg></button>
                     <button @click="refreshDispatch('fuel')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新燃油业务"><svg class="w-4 h-4" :class="dispatchRefreshing.fuel ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg></button>
-                    <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                    <button @click.stop="togglePanelMenu('fuel')" draggable="false" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                    <div v-if="dispatchPanelMenu === 'fuel'" class="absolute right-2 top-10 z-50 w-24 rounded-lg border border-slate-200 bg-white py-1 shadow-xl text-[12px] text-slate-600" @click.stop><button @click="openPanelEditor('add')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">添加</button><button @click="openPanelEditor('edit', 'fuel')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">编辑</button><button @click="removeDispatchPanel('fuel')" class="block w-full px-3 py-2 text-left hover:bg-red-50 hover:text-red-500">移除</button></div>
                   </div>
                 </div>
                 <div v-show="!dispatchCollapsed.fuel" class="px-4 pb-4">
@@ -810,21 +814,25 @@
               </section>
 
               <!-- 调度-特殊航次 -->
-              <section class="dispatch-special-panel rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div class="h-12 px-4 flex items-center justify-between border-b border-slate-100">
-                  <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18m9-9H3m15.364-6.364L5.636 18.364m0-12.728l12.728 12.728" /></svg></span>调度-特殊航次</h2>
+              <section v-show="isPanelVisible('special')" draggable="true" @dragstart="startPanelDrag($event, 'special')" @dragover.prevent @drop="dropPanel($event, 'special')" @dragend="endPanelDrag" :style="{ order: panelOrder('special') }" :class="['dispatch-special-panel dispatch-panel-card rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden', dispatchDragId === 'special' ? 'opacity-50' : '']">
+                <div draggable="true" class="relative h-12 px-4 flex items-center justify-between border-b border-slate-100 cursor-move">
+                  <h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18m9-9H3m15.364-6.364L5.636 18.364m0-12.728l12.728 12.728" /></svg></span>{{ panelTitle('special') }}</h2>
                   <div class="flex items-center gap-1 text-slate-400">
                     <button @click="dispatchCollapsed.special = !dispatchCollapsed.special" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" :aria-label="dispatchCollapsed.special ? '展开特殊航次' : '收起特殊航次'"><svg class="w-4 h-4 transition-transform" :class="dispatchCollapsed.special ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg></button>
                     <button @click="refreshDispatch('special')" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="刷新特殊航次"><svg class="w-4 h-4" :class="dispatchRefreshing.special ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356m-1.291 4.111a8.25 8.25 0 10.746 7.986" /></svg></button>
-                    <button class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                    <button @click.stop="togglePanelMenu('special')" draggable="false" class="w-7 h-7 rounded-lg hover:bg-slate-100 hover:text-corp-600 flex items-center justify-center transition-colors" aria-label="更多操作"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+                    <div v-if="dispatchPanelMenu === 'special'" class="absolute right-2 top-10 z-50 w-24 rounded-lg border border-slate-200 bg-white py-1 shadow-xl text-[12px] text-slate-600" @click.stop><button @click="openPanelEditor('add')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">添加</button><button @click="openPanelEditor('edit', 'special')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">编辑</button><button @click="removeDispatchPanel('special')" class="block w-full px-3 py-2 text-left hover:bg-red-50 hover:text-red-500">移除</button></div>
                   </div>
                 </div>
                 <div v-show="!dispatchCollapsed.special" class="px-4 pb-4">
                   <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll"><button v-for="tab in dispatchSpecialTabs" :key="tab.id" @click="dispatchSpecialTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchSpecialTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">{{ tab.label }} <span :class="dispatchSpecialTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span></button></div>
-                  <div class="py-3 max-w-[420px]"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.specialScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>我的科室</option><option>我负责的航次</option><option>全部航次</option></select></label></div>
-                  <div class="max-h-[250px] overflow-auto slim-scroll pb-1"><table v-if="dispatchSpecialTab !== 'repair'" class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>航线</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody>
+                  <div :class="['py-3', dispatchSpecialTab === 'suez' ? 'grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto] gap-4 items-center' : 'max-w-[420px]']"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.specialScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>我的科室</option><option>我负责的航次</option><option>全部航次</option></select></label><label v-if="dispatchSpecialTab === 'suez'" class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">是否完成：</span><select v-model="dispatchFilters.suezCompleted" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>未完成</option><option>已完成</option><option>全部</option></select></label><button v-if="dispatchSpecialTab === 'suez'" class="text-[12px] text-blue-500 hover:text-blue-600">说明</button></div>
+                  <div class="max-h-[250px] overflow-auto slim-scroll pb-1"><table v-if="dispatchSpecialTab === 'eua' || dispatchSpecialTab === 'special'" class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>航线</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody>
                     <tr v-for="row in dispatchSpecialRows" :key="row.ship + row.voyage"><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.route }}</td><td>{{ row.arrival }}</td><td>{{ row.departure }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button></div></td></tr>
                   </tbody></table>
+                    <table v-else-if="dispatchSpecialTab === 'suez'" class="dispatch-table min-w-[980px]"><thead><tr><th>船舶</th><th>航次</th><th>抵运河时间</th><th>离运河时间</th><th>运河费</th><th>折扣比例</th><th>退税情况</th><th>调度</th><th>操作</th></tr></thead><tbody>
+                      <tr v-for="row in dispatchSuezRows" :key="row.ship + row.voyage"><td class="font-medium text-slate-700">{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.arrival }}</td><td>{{ row.departure }}</td><td>{{ row.fee }}</td><td>{{ row.discount }}</td><td>{{ row.refund }}</td><td>{{ maskName(row.dispatcher) }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开">↗</button><button title="查看">▧</button><button title="编辑">⌕</button></div></td></tr>
+                    </tbody></table>
                     <table v-else class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>修船港口</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody>
                       <tr v-for="row in dispatchRepairRows" :key="row.ship + row.voyage"><td class="font-medium text-slate-700">{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.port }}</td><td>{{ row.arrival }}</td><td>{{ row.departure }}</td><td><button class="text-blue-500" title="打开"><svg class="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button></td></tr>
                     </tbody></table>
@@ -833,6 +841,10 @@
               </section>
             </div>
           </div>
+          <section v-for="panel in customDispatchPanels" :key="panel.id" draggable="true" @dragstart="startPanelDrag($event, panel.id)" @dragover.prevent @drop="dropPanel($event, panel.id)" @dragend="endPanelDrag" :style="{ order: panel.order }" :class="['dispatch-panel-card rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden', dispatchDragId === panel.id ? 'opacity-50' : '']">
+            <div class="relative h-12 px-4 flex items-center justify-between border-b border-slate-100 cursor-move"><h2 class="flex items-center gap-2 text-[13px] font-bold text-slate-800"><span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">＋</span>{{ panel.title }}</h2><button @click.stop="togglePanelMenu(panel.id)" draggable="false" class="w-7 h-7 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-corp-600">⋮</button><div v-if="dispatchPanelMenu === panel.id" class="absolute right-2 top-10 z-50 w-24 rounded-lg border border-slate-200 bg-white py-1 shadow-xl text-[12px] text-slate-600" @click.stop><button @click="openPanelEditor('add')" class="block w-full px-3 py-2 text-left hover:bg-slate-50">添加</button><button @click="openPanelEditor('edit', panel.id)" class="block w-full px-3 py-2 text-left hover:bg-slate-50">编辑</button><button @click="removeDispatchPanel(panel.id)" class="block w-full px-3 py-2 text-left hover:bg-red-50 hover:text-red-500">移除</button></div></div>
+            <div class="h-32 flex items-center justify-center text-[12px] text-slate-400">暂无数据</div>
+          </section>
         </div>
         <div v-else class="p-4">
           <div class="h-[220px] rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col items-center justify-center text-center">
@@ -841,6 +853,14 @@
             </div>
             <div class="text-[14px] font-bold text-slate-700">{{ dispatchModuleTabs.find(item => item.id === dispatchModuleTab)?.label }}</div>
             <div class="mt-1 text-[12px] text-slate-400">暂无数据</div>
+          </div>
+        </div>
+        <div v-if="dispatchPanelDialog.open" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/35 p-4" @click.self="closePanelEditor">
+          <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div class="flex items-center justify-between"><h3 class="text-[15px] font-bold text-slate-800">{{ dispatchPanelDialog.mode === 'edit' ? '编辑组件' : '添加组件' }}</h3><button @click="closePanelEditor" class="text-slate-400 hover:text-slate-600">×</button></div>
+            <div v-if="dispatchPanelDialog.mode === 'add' && hiddenDispatchPanels.length" class="mt-4"><div class="mb-2 text-[12px] font-semibold text-slate-600">恢复已移除组件</div><div class="flex flex-wrap gap-2"><button v-for="panel in hiddenDispatchPanels" :key="panel.id" @click="restoreDispatchPanel(panel.id)" class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-600 hover:bg-blue-100">+ {{ panel.title }}</button></div></div>
+            <label class="mt-4 block text-[12px] font-semibold text-slate-600">{{ dispatchPanelDialog.mode === 'edit' ? '组件名称' : '新组件名称' }}<input v-model.trim="dispatchPanelDialog.title" @keyup.enter="savePanelEditor" maxlength="30" placeholder="请输入组件名称" class="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3 text-[13px] font-normal outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"></label>
+            <div class="mt-5 flex justify-end gap-2"><button @click="closePanelEditor" class="rounded-lg border border-slate-200 px-4 py-2 text-[12px] text-slate-600 hover:bg-slate-50">取消</button><button @click="savePanelEditor" :disabled="!dispatchPanelDialog.title" class="rounded-lg bg-corp-600 px-4 py-2 text-[12px] text-white hover:bg-corp-700 disabled:cursor-not-allowed disabled:opacity-40">确定</button></div>
           </div>
         </div>
       </div>
@@ -1561,8 +1581,18 @@ createApp({
       dispatchSpecialTab: 'eua',
       dispatchFilters: {
         voyageScope: '我的科室', route: '请选择', calcScope: '我的科室', company: '全部公司',
-        costScope: '我的科室', fuelScope: '全部航次', specialScope: '我的科室',
+        costScope: '我的科室', fuelScope: '全部航次', specialScope: '我的科室', suezCompleted: '未完成',
       },
+      dispatchPanels: [
+        { id: 'fuel', title: '调度-燃油业务', order: 1, visible: true },
+        { id: 'calc', title: '调度-航次测算', order: 2, visible: true },
+        { id: 'voyage', title: '调度-我的船舶航次', order: 3, visible: true },
+        { id: 'cost', title: '调度-使费业务', order: 4, visible: true },
+        { id: 'special', title: '调度-特殊航次', order: 5, visible: true },
+      ],
+      dispatchPanelMenu: null,
+      dispatchDragId: null,
+      dispatchPanelDialog: { open: false, mode: 'add', panelId: null, title: '' },
       dispatchCollapsed: { voyage: false, calc: false, cost: false, fuel: true, special: false },
       dispatchRefreshing: { voyage: false, calc: false, cost: false, fuel: false, special: false },
       dispatchCalcRows: [
@@ -1572,6 +1602,15 @@ createApp({
         { company: '港达公司', ship: '梅岛海-T03118', voyage: '103', type: 'VC', dispatcher: '陈亮', endTime: '2026-08-15 03:35:00' },
         { company: '港达公司', ship: 'HECTOR-602127', voyage: '3', type: 'VC', dispatcher: '苏鑫华', endTime: '2026-08-14 04:06:00' },
         { company: '港达公司', ship: 'BBG GUIJIANG-613203', voyage: '14', type: 'VC', dispatcher: '王仲', endTime: '2026-08-13 19:48:00' },
+      ],
+      dispatchSuezRows: [
+        { ship: 'BAO NING LING', voyage: '150', arrival: 'E2026-09-17 23:20:49', departure: 'E2026-09-19 23:20:49', fee: '', discount: '', refund: '', dispatcher: '李信雷' },
+        { ship: 'GUO XIN HAI', voyage: '1', arrival: 'E2026-09-14 06:45:54', departure: 'E2026-09-14 06:45:54', fee: '', discount: '', refund: '', dispatcher: '阮德成' },
+        { ship: '盛丰海', voyage: '42', arrival: 'E2026-09-11 17:04:34', departure: 'E2026-09-11 17:04:34', fee: '', discount: '', refund: '', dispatcher: '陆前' },
+        { ship: 'SHAN HU HAI', voyage: '104', arrival: 'E2026-09-09 04:38:45', departure: 'E2026-09-09 16:38:45', fee: '0', discount: '', refund: '', dispatcher: '李信雷' },
+        { ship: 'GUO LIANG HAI', voyage: '1', arrival: 'E2026-09-07 12:00:00', departure: 'E2026-09-08 08:00:00', fee: '', discount: '', refund: '', dispatcher: '刘宏震' },
+        { ship: 'QING HUA SHAN', voyage: '89', arrival: 'E2026-08-29 10:00:00', departure: 'E2026-08-31 09:59:16', fee: '313666.72', discount: '', refund: '', dispatcher: '符启亮' },
+        { ship: 'GUO MING HAI', voyage: '3', arrival: 'E2026-08-28 15:00:00', departure: 'E2026-08-29 10:00:00', fee: '571893.91', discount: '', refund: '', dispatcher: '张涛' },
       ],
       dispatchVoyageRows: [
         { ship: '京鲁海', voyage: '80', startPort: 'JINGTANG', startTime: '2026-06-22 16:15', endPort: 'DALIAN', completeTime: 'E2026-08-18 01:54', port: 'JINGTANG', zone: '+8', purpose: '', arrival: '2026-06-03 13:15', departure: '2026-06-22 23:30', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '叶宏光', completeAlert: true },
@@ -2002,6 +2041,12 @@ createApp({
     window.removeEventListener('keydown', this.onKeydown)
   },
   computed: {
+    hiddenDispatchPanels() {
+      return this.dispatchPanels.filter(panel => !panel.visible)
+    },
+    customDispatchPanels() {
+      return this.dispatchPanels.filter(panel => panel.custom && panel.visible)
+    },
     overallStats() {
       const total = this.nodes.reduce((s, n) => s + n.items.length, 0)
       const done = this.nodes.reduce((s, n) => s + this.nodeDoneCount(n), 0)
@@ -2114,6 +2159,74 @@ createApp({
     },
   },
   methods: {
+    maskName(name) {
+      if (!name) return ''
+      const chars = Array.from(name)
+      if (chars.length === 1) return '*'
+      if (chars.length === 2) return chars[0] + '*'
+      return chars[0] + '*' + chars[chars.length - 1]
+    },
+    dispatchPanel(id) {
+      return this.dispatchPanels.find(panel => panel.id === id)
+    },
+    panelTitle(id) {
+      return this.dispatchPanel(id)?.title || ''
+    },
+    panelOrder(id) {
+      return this.dispatchPanel(id)?.order || 99
+    },
+    isPanelVisible(id) {
+      return this.dispatchPanel(id)?.visible !== false
+    },
+    togglePanelMenu(id) {
+      this.dispatchPanelMenu = this.dispatchPanelMenu === id ? null : id
+    },
+    openPanelEditor(mode, panelId = null) {
+      const panel = panelId ? this.dispatchPanel(panelId) : null
+      this.dispatchPanelDialog = { open: true, mode, panelId, title: panel?.title || '' }
+      this.dispatchPanelMenu = null
+    },
+    closePanelEditor() {
+      this.dispatchPanelDialog.open = false
+    },
+    savePanelEditor() {
+      const title = this.dispatchPanelDialog.title.trim()
+      if (!title) return
+      if (this.dispatchPanelDialog.mode === 'edit') {
+        const panel = this.dispatchPanel(this.dispatchPanelDialog.panelId)
+        if (panel) panel.title = title
+      } else {
+        const maxOrder = Math.max(0, ...this.dispatchPanels.map(panel => panel.order))
+        this.dispatchPanels.push({ id: 'custom-' + Date.now(), title, order: maxOrder + 1, visible: true, custom: true })
+      }
+      this.closePanelEditor()
+    },
+    removeDispatchPanel(id) {
+      const panel = this.dispatchPanel(id)
+      if (panel) panel.visible = false
+      this.dispatchPanelMenu = null
+    },
+    restoreDispatchPanel(id) {
+      const panel = this.dispatchPanel(id)
+      if (panel) panel.visible = true
+      this.closePanelEditor()
+    },
+    startPanelDrag(event, id) {
+      this.dispatchDragId = id
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', id)
+    },
+    dropPanel(event, targetId) {
+      const sourceId = this.dispatchDragId || event.dataTransfer.getData('text/plain')
+      if (!sourceId || sourceId === targetId) return
+      const source = this.dispatchPanel(sourceId)
+      const target = this.dispatchPanel(targetId)
+      if (source && target) [source.order, target.order] = [target.order, source.order]
+      this.dispatchDragId = null
+    },
+    endPanelDrag() {
+      this.dispatchDragId = null
+    },
     refreshDispatch(section) {
       this.dispatchRefreshing[section] = true
       setTimeout(() => { this.dispatchRefreshing[section] = false }, 650)
