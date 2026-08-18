@@ -781,9 +781,13 @@
               <div v-show="!dispatchCollapsed.cost" class="px-4 pb-4">
                 <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll"><button v-for="tab in dispatchCostTabs" :key="tab.id" @click="dispatchCostTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchCostTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">{{ tab.label }} <span :class="dispatchCostTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span></button></div>
                 <div class="py-3 max-w-[420px]"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.costScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>全部航次</option><option>我的科室</option><option>我负责的航次</option></select></label></div>
-                <div class="max-h-[250px] overflow-auto slim-scroll pb-1"><table class="dispatch-table min-w-[780px]"><thead><tr><th>船舶</th><th>航次</th><th>港口名称</th><th>目的</th><th>优惠项目</th><th>说明</th><th>预抵港时间</th><th>操作</th></tr></thead><tbody>
+                <div class="max-h-[250px] overflow-auto slim-scroll pb-1"><table v-if="dispatchCostTab === 'discount'" class="dispatch-table min-w-[780px]"><thead><tr><th>船舶</th><th>航次</th><th>港口名称</th><th>目的</th><th>优惠项目</th><th>说明</th><th>预抵港时间</th><th>操作</th></tr></thead><tbody>
                   <tr v-for="row in dispatchCostRows" :key="row.ship + row.voyage"><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.port }}</td><td>{{ row.purpose }}</td><td>{{ row.discount }}</td><td>{{ row.note }}</td><td>{{ row.eta }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button></div></td></tr>
-                </tbody></table></div>
+                </tbody></table>
+                  <table v-else class="dispatch-table min-w-[720px]"><thead><tr><th>船舶</th><th>航次</th><th>港口</th><th>金额</th><th>是否带入预估单</th><th>操作</th></tr></thead><tbody>
+                    <tr v-for="row in dispatchOwnerCostRows" :key="row.ship + row.voyage + row.port"><td class="font-medium text-slate-700">{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.port }}</td><td>{{ row.amount }}</td><td>{{ row.imported }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button></div></td></tr>
+                  </tbody></table>
+                </div>
               </div>
             </section>
 
@@ -818,9 +822,13 @@
                 <div v-show="!dispatchCollapsed.special" class="px-4 pb-4">
                   <div class="flex items-center gap-7 border-b border-slate-200 overflow-x-auto slim-scroll"><button v-for="tab in dispatchSpecialTabs" :key="tab.id" @click="dispatchSpecialTab = tab.id" :class="['h-11 shrink-0 px-1 text-[12px] font-medium border-b-2 transition-colors', dispatchSpecialTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-600 hover:text-corp-700']">{{ tab.label }} <span :class="dispatchSpecialTab === tab.id ? 'text-corp-600' : 'text-slate-500'">（{{ tab.count }}）</span></button></div>
                   <div class="py-3 max-w-[420px]"><label class="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600"><span class="shrink-0">查询范围：</span><select v-model="dispatchFilters.specialScope" class="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-normal text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100"><option>我的科室</option><option>我负责的航次</option><option>全部航次</option></select></label></div>
-                  <div class="max-h-[250px] overflow-auto slim-scroll pb-1"><table class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>航线</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody>
+                  <div class="max-h-[250px] overflow-auto slim-scroll pb-1"><table v-if="dispatchSpecialTab !== 'repair'" class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>航线</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody>
                     <tr v-for="row in dispatchSpecialRows" :key="row.ship + row.voyage"><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.route }}</td><td>{{ row.arrival }}</td><td>{{ row.departure }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="打开"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button></div></td></tr>
-                  </tbody></table></div>
+                  </tbody></table>
+                    <table v-else class="dispatch-table min-w-[620px]"><thead><tr><th>船舶</th><th>航次</th><th>修船港口</th><th>抵港时间</th><th>离港时间</th><th>操作</th></tr></thead><tbody>
+                      <tr v-for="row in dispatchRepairRows" :key="row.ship + row.voyage"><td class="font-medium text-slate-700">{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.port }}</td><td>{{ row.arrival }}</td><td>{{ row.departure }}</td><td><button class="text-blue-500" title="打开"><svg class="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-6 1.5L21 3m0 0h-6.75M21 3v6.75" /></svg></button></td></tr>
+                    </tbody></table>
+                  </div>
                 </div>
               </section>
             </div>
@@ -1586,6 +1594,15 @@ createApp({
         { ship: 'MAGSENGER 12-613236', voyage: '24', port: 'TIANJIN', purpose: 'D', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
         { ship: 'CL LOUDI-613672', voyage: '6', port: 'ZHENJIANG', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '' },
       ],
+      dispatchOwnerCostRows: [
+        { ship: '玉霄峰-G0B958', voyage: '80', port: 'GDYNIA', amount: '3558EUR', imported: '否' },
+        { ship: '云密峰-G0A207', voyage: '110', port: 'CAMPANA', amount: '16663USD', imported: '否' },
+        { ship: '玉霄峰-G0B958', voyage: '88', port: 'AMSTERDAM', amount: '6485EUR', imported: '否' },
+        { ship: '玉霄峰-G0B958', voyage: '83', port: 'SUEZ CANAL', amount: '13660USD', imported: '否' },
+        { ship: '远安海-Q03140', voyage: '127', port: 'HONG KONG', amount: '5359.48USD', imported: '否' },
+        { ship: '玉霄峰-G0B958', voyage: '74', port: 'SINGAPORE', amount: '38.71SGD', imported: '否' },
+        { ship: '云密峰-G0A207', voyage: '103', port: 'ROTTERDAM', amount: '6700EUR', imported: '否' },
+      ],
       dispatchSpecialRows: [
         { ship: 'FENG HUANG FENG', voyage: '103', route: '岚津加勒比', arrival: '2026-08-03 22:24:00', departure: 'E2026-10-02 00:32:47' },
         { ship: 'CL JIUJIANG', voyage: '17', route: '巴巴荷美', arrival: '2026-06-21 15:00:00', departure: 'E2026-08-17 19:40:00' },
@@ -1594,6 +1611,9 @@ createApp({
         { ship: 'GREAT FLOURISH', voyage: '7', route: '意直伦德德', arrival: '2025-10-08 19:10:00', departure: '2025-11-23 02:30:00' },
         { ship: 'MEDI OITA', voyage: '9', route: '法美土土', arrival: '2026-07-29 17:06:00', departure: 'E2026-10-02 01:03:00' },
         { ship: 'MEDI OITA', voyage: '8', route: '巴巴群法法', arrival: '2026-06-13 13:42:00', departure: '2026-07-29 17:06:00' },
+      ],
+      dispatchRepairRows: [
+        { ship: 'YUN MI FENG', voyage: '139', port: 'GUANGZHOU', arrival: '2026-06-13 10:36:00', departure: 'E2026-10-07 18:40:41' },
       ],
 
       loading: true,        // 骨架屏
