@@ -763,7 +763,7 @@
               </div>
               <div class="max-h-[260px] overflow-auto slim-scroll pb-1">
                 <table class="dispatch-table min-w-[980px]"><thead><tr><th>经营公司</th><th>船舶</th><th>航次</th><th>航次类型</th><th>测算2.0</th><th>测算4.0</th><th>调度</th><th>航次结束时间</th><th>操作</th></tr></thead><tbody>
-                  <tr v-for="row in dispatchCalcRows" :key="row.ship + row.type" :class="row.selected ? 'is-selected' : ''"><td>{{ row.company }}</td><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.type }}</td><td></td><td><svg class="w-3.5 h-3.5 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></td><td>{{ maskName(row.dispatcher) }}</td><td>{{ row.endTime }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button><button title="编辑"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897L18.55 2.8" /></svg></button></div></td></tr>
+                  <tr v-for="row in dispatchCalcRows" :key="row.ship + row.type" :class="row.selected ? 'is-selected' : ''"><td>{{ row.company }}</td><td>{{ row.ship }}</td><td>{{ row.voyage }}</td><td>{{ row.type }}</td><td><svg v-if="row.calc2" class="w-3.5 h-3.5 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></td><td><svg v-if="row.calc4" class="w-3.5 h-3.5 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></td><td>{{ maskName(row.dispatcher) }}</td><td>{{ row.endTime }}</td><td><div class="flex items-center justify-center gap-2 text-blue-500"><button title="查看"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3h6m2.25 6H6.75A2.25 2.25 0 014.5 18.75V5.25A2.25 2.25 0 016.75 3h7.5L19.5 8.25v10.5A2.25 2.25 0 0117.25 21z" /></svg></button><button title="编辑"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897L18.55 2.8" /></svg></button></div></td></tr>
                 </tbody></table>
               </div>
             </div>
@@ -1548,20 +1548,20 @@ createApp({
       ],
       dispatchModuleTab: 'voyage-management',
       dispatchVoyageTabs: [
-        { id: 'unfinished', label: '未完航次', count: '14/71' },
-        { id: 'unplanned', label: '无航次安排', count: '11' },
-        { id: 'delivery', label: '交船登记', count: '4' },
-        { id: 'cargo-check', label: '货量校验提醒', count: '25' },
+        { id: 'unfinished', label: '未完航次', count: '32/32' },
+        { id: 'unplanned', label: '无航次安排', count: '0' },
+        { id: 'delivery', label: '交船登记', count: '11' },
+        { id: 'cargo-check', label: '货量校验提醒', count: '50' },
         { id: 'laycan', label: '超受载期', count: '0' },
-        { id: 'certificate', label: '到期/预警证书', count: '5/3' },
+        { id: 'certificate', label: '到期/预警证书', count: '19/12' },
       ],
       dispatchCalcTabs: [
-        { id: 'pending', label: '待新建', count: '6' },
+        { id: 'pending', label: '待新建', count: '5' },
         { id: 'deviation', label: '预实测期和水平偏差', count: '' },
       ],
       dispatchCostTabs: [
-        { id: 'discount', label: '预选港口使费优惠', count: '13' },
-        { id: 'owner-cost', label: '待导入船东费用', count: '8' },
+        { id: 'discount', label: '预选港口使费优惠', count: '3' },
+        { id: 'owner-cost', label: '待导入船东费用', count: '9' },
       ],
       dispatchFuelTabs: [
         { id: 'report', label: '补录加油报', count: '0' },
@@ -1569,9 +1569,9 @@ createApp({
         { id: 'carbon', label: '碳税消耗', count: '' },
       ],
       dispatchSpecialTabs: [
-        { id: 'eua', label: 'EUA', count: '7' },
-        { id: 'suez', label: '苏伊士运河预折扣', count: '51' },
-        { id: 'repair', label: '修船', count: '1' },
+        { id: 'eua', label: 'EUA', count: '1' },
+        { id: 'suez', label: '苏伊士运河预折扣', count: '36' },
+        { id: 'repair', label: '修船', count: '0' },
         { id: 'special', label: '特殊处理', count: '0' },
       ],
       dispatchVoyageTab: 'unfinished',
@@ -1581,7 +1581,7 @@ createApp({
       dispatchSpecialTab: 'eua',
       dispatchFilters: {
         voyageScope: '我的科室', route: '请选择', calcScope: '我的科室', company: '全部公司',
-        costScope: '我的科室', fuelScope: '全部航次', specialScope: '我的科室', suezCompleted: '未完成',
+        costScope: '我的科室', fuelScope: '我的科室', specialScope: '我的科室', suezCompleted: '未完成',
       },
       dispatchPanels: [
         { id: 'fuel', title: '调度-燃油业务', order: 1, visible: true },
@@ -1596,64 +1596,37 @@ createApp({
       dispatchCollapsed: { voyage: false, calc: false, cost: false, fuel: true, special: false },
       dispatchRefreshing: { voyage: false, calc: false, cost: false, fuel: false, special: false },
       dispatchCalcRows: [
-        { company: '港达公司', ship: 'MARINE CRYSTAL-613582', voyage: '11', type: 'BTB', dispatcher: '陈亮', endTime: '2026-08-17 06:06:00' },
-        { company: '港达公司', ship: 'MARINE CRYSTAL-613582', voyage: '11', type: 'VC', dispatcher: '陈亮', endTime: '2026-08-17 06:06:00', selected: true },
-        { company: '港达公司', ship: 'GREAT BLOSSOM-613120', voyage: '13', type: 'TCT', dispatcher: '于波', endTime: '2026-08-16 04:30:00' },
-        { company: '港达公司', ship: '梅岛海-T03118', voyage: '103', type: 'VC', dispatcher: '陈亮', endTime: '2026-08-15 03:35:00' },
-        { company: '港达公司', ship: 'HECTOR-602127', voyage: '3', type: 'VC', dispatcher: '苏鑫华', endTime: '2026-08-14 04:06:00' },
-        { company: '港达公司', ship: 'BBG GUIJIANG-613203', voyage: '14', type: 'VC', dispatcher: '王仲', endTime: '2026-08-13 19:48:00' },
+        { company: '雅达公司', ship: '盛宁海-T05108', voyage: '42', type: 'VC', calc2: true, dispatcher: '贾晓晖', endTime: '2026-06-28 20:00:42' },
+        { company: '散运总部', ship: 'EASTERN VENTURE', voyage: '1', type: 'BTB', calc4: true, dispatcher: '赵凯', endTime: '2026-05-14 00:36:00' },
+        { company: '雅达公司', ship: 'EASTERN VENTURE', voyage: '1', type: 'VC', calc4: true, dispatcher: '赵凯', endTime: '2026-05-14 00:36:00' },
+        { company: '散运总部', ship: '远海金鑫-613704', voyage: '6', type: 'VC', calc4: true, dispatcher: '陈刚川', endTime: '2026-05-13 08:18:00' },
+        { company: '雅达公司', ship: 'MANDARIN RIVER', voyage: '2', type: 'VC', calc4: true, dispatcher: '陈刚川', endTime: '2026-05-02 04:00:00' },
       ],
-      dispatchSuezRows: [
-        { ship: 'BAO NING LING', voyage: '150', arrival: 'E2026-09-17 23:20:49', departure: 'E2026-09-19 23:20:49', fee: '', discount: '', refund: '', dispatcher: '李信雷' },
-        { ship: 'GUO XIN HAI', voyage: '1', arrival: 'E2026-09-14 06:45:54', departure: 'E2026-09-14 06:45:54', fee: '', discount: '', refund: '', dispatcher: '阮德成' },
-        { ship: '盛丰海', voyage: '42', arrival: 'E2026-09-11 17:04:34', departure: 'E2026-09-11 17:04:34', fee: '', discount: '', refund: '', dispatcher: '陆前' },
-        { ship: 'SHAN HU HAI', voyage: '104', arrival: 'E2026-09-09 04:38:45', departure: 'E2026-09-09 16:38:45', fee: '0', discount: '', refund: '', dispatcher: '李信雷' },
-        { ship: 'GUO LIANG HAI', voyage: '1', arrival: 'E2026-09-07 12:00:00', departure: 'E2026-09-08 08:00:00', fee: '', discount: '', refund: '', dispatcher: '刘宏震' },
-        { ship: 'QING HUA SHAN', voyage: '89', arrival: 'E2026-08-29 10:00:00', departure: 'E2026-08-31 09:59:16', fee: '313666.72', discount: '', refund: '', dispatcher: '符启亮' },
-        { ship: 'GUO MING HAI', voyage: '3', arrival: 'E2026-08-28 15:00:00', departure: 'E2026-08-29 10:00:00', fee: '571893.91', discount: '', refund: '', dispatcher: '张涛' },
-      ],
+      dispatchSuezRows: [],
       dispatchVoyageRows: [
-        { ship: '京鲁海', voyage: '80', startPort: 'JINGTANG', startTime: '2026-06-22 16:15', endPort: 'DALIAN', completeTime: 'E2026-08-18 01:54', port: 'JINGTANG', zone: '+8', purpose: '', arrival: '2026-06-03 13:15', departure: '2026-06-22 23:30', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '叶宏光', completeAlert: true },
-        { ship: '京鲁海', voyage: '81', startPort: 'DALIAN', startTime: 'E2026-08-18 01:54', endPort: '', completeTime: 'E2026-10-25 07:45', port: 'HUANGHUA', zone: '+08', purpose: 'L', arrival: '2026-08-20 06:00', departure: '2026-08-20 06:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '叶宏光', startAlert: true },
-        { ship: '武竹海', voyage: '153', startPort: 'ZHANJIANG', startTime: '2026-04-20 12:10', endPort: '', completeTime: 'E2026-08-17 11:00', port: 'NANTONG', zone: '+8', purpose: 'D', arrival: '2026-08-14 11:45', departure: 'E2026-08-14 11:45', cargoStart: '2026-08-15 16:58', cargoEnd: '2026-08-17 19:00', fuelStart: '2026-08-15 09:10:00', fuelEnd: '2026-08-15 12:30:00', creator: '于波', completeAlert: true, departureAlert: true },
-        { ship: 'GEOPRIDE', voyage: '1', startPort: 'KARAIKAL', startTime: '2026-06-08 15:30', endPort: '', completeTime: 'E2026-08-31 14:30', port: 'SINGAPORE', zone: '+07', purpose: 'B', arrival: 'E2026-08-17 18:25', departure: 'E2026-08-18 18:25', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '朱国海', arrivalAlert: true },
-        { ship: 'MAGSENGER 12', voyage: '24', startPort: 'TIANJIN', startTime: '2026-07-13 04:00', endPort: '', completeTime: 'E2026-08-16 15:50', port: 'TIANJIN', zone: '+08', purpose: 'D', arrival: '2026-08-24 12:00', departure: '2026-08-24 12:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '李和平', completeAlert: true },
-        { ship: 'MAGSENGER 12', voyage: '22', startPort: 'ZHUHAI', startTime: '2026-07-12 10:50', endPort: '', completeTime: 'E2026-08-20 08:05', port: 'CHANGJIANGKOU', zone: '+08', purpose: 'P', arrival: 'E2026-08-17 20:00', departure: 'E2026-08-18 08:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '李和平', arrivalAlert: true, departureAlert: true },
-        { ship: 'YUE DIAN 8', voyage: '2', startPort: 'ZHUHAI', startTime: 'E2026-08-18 03:30', endPort: '', completeTime: 'E2026-09-15 23:07', port: 'HUANAI', zone: '+08', purpose: 'DI', arrival: 'E2026-08-18 11:30', departure: 'E2026-08-18 11:30', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '李岩', startAlert: true, arrivalAlert: true, departureAlert: true },
-        { ship: 'MODEST', voyage: '2', startPort: 'FLUSHING', startTime: 'E2026-05-16 23:18', endPort: '', completeTime: 'E2026-08-23 00:00', port: 'CHANGJIANGKOU', zone: '+08', purpose: 'P', arrival: 'E2026-08-15 13:00', departure: '2026-08-19 10:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '王仲', startAlert: true, arrivalAlert: true },
-        { ship: 'CL JIUJIANG', voyage: '17', startPort: 'PARANAGUA', startTime: '2026-06-21 15:00', endPort: '', completeTime: 'E2026-08-17 19:40', port: 'TILBURY', zone: '+1', purpose: 'D', arrival: '2026-08-07 17:24', departure: 'E2026-08-07 17:24', cargoStart: '2026-08-07 20:20', cargoEnd: '2026-08-17 20:40', fuelStart: '', fuelEnd: '', creator: '王仲', completeAlert: true, departureAlert: true },
-        { ship: 'CL SHANDONG', voyage: '16', startPort: 'PECEM', startTime: '2026-07-14 17:24', endPort: '', completeTime: 'E2026-08-18 13:00', port: 'PORT ALFRED(CA)', zone: '-4', purpose: 'D', arrival: '2026-08-07 09:36', departure: 'E2026-08-18 02:00', cargoStart: '2026-08-14 19:05', cargoEnd: '2026-08-18 01:00', fuelStart: '', fuelEnd: '', creator: '王仲', departureAlert: true },
+        { ship: '银桦1', voyage: '307', startPort: 'FANGCHENGGANG', startTime: '2026-05-08 13:36', endPort: '', completeTime: 'E2026-06-01 12:39', port: 'NGHI SON', zone: '+7', purpose: 'L', arrival: '2026-05-09 15:00', departure: 'E2026-05-09 15:00', cargoStart: '2026-05-11 07:10', cargoEnd: 'E2026-05-18 19:00', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true, departureAlert: true },
+        { ship: '笔架山', voyage: '114', startPort: 'CAOFEIDIAN', startTime: '2026-04-20 02:48', endPort: '', completeTime: 'E2026-05-22 18:30', port: 'SOHAR', zone: '+5', purpose: 'D', arrival: 'E2026-05-21 22:30', departure: 'E2026-05-21 22:30', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: '德友轮', voyage: '1', startPort: 'MUNDRA', startTime: '2026-05-09 00:30', endPort: '', completeTime: 'E2026-06-01 18:44', port: 'SINGAPORE', zone: '+08', purpose: 'B', arrival: 'E2026-05-23 13:36', departure: 'E2026-05-23 13:36', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: '幸运', voyage: '46', startPort: 'MOMBASA', startTime: '2026-04-06 19:54', endPort: 'CAMPHA', completeTime: 'E2026-05-17 13:48', port: 'MOMBASA', zone: '+3', purpose: '', arrival: '2026-03-26 13:12', departure: '2026-04-06 22:54', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true },
+        { ship: '幸运', voyage: '47', startPort: 'CAMPHA', startTime: 'E2026-05-17 12:00', endPort: 'CHITTAGONG', completeTime: 'E2026-06-08 07:11', port: 'NGHI SON', zone: '+07', purpose: 'L', arrival: 'E2026-05-19 17:00', departure: 'E2026-05-19 17:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', startAlert: true, completeAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: '兰花', voyage: '42', startPort: 'QINGDAO', startTime: '2026-02-25 02:10', endPort: 'DAR-ES-SALAAM', completeTime: 'E2026-05-25 10:00', port: 'DAR-ES-SALAAM', zone: '+3', purpose: 'D', arrival: '2026-05-06 02:00', departure: 'E2026-05-06 02:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true, departureAlert: true },
+        { ship: '远海金鑫', voyage: '7', startPort: 'ZHOUSHAN', startTime: '2026-05-13 08:18', endPort: 'SUBIC BAY', completeTime: 'E2026-06-18 05:59', port: 'KWINANA', zone: '+8', purpose: 'L', arrival: 'E2026-05-26 15:00', departure: 'E2026-05-26 15:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: '远海青翰', voyage: '6', startPort: 'PARADIP', startTime: '2026-02-24 10:54', endPort: 'NANTONG', completeTime: 'E2026-05-18 14:00', port: 'NANTONG', zone: '+8', purpose: 'D', arrival: 'E2026-05-15 19:00', departure: 'E2026-05-15 19:00', cargoStart: '2026-05-16 12:00', cargoEnd: 'E2026-05-18 10:30', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: '远海青翰', voyage: '7', startPort: 'NANTONG', startTime: 'E2026-05-18 14:00', endPort: 'DAR-ES-SALAAM', completeTime: 'E2026-07-06 16:26', port: 'NANTONG', zone: '+8', purpose: 'DI', arrival: 'E2026-05-15 19:00', departure: 'E2026-05-15 19:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', startAlert: true, completeAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: '盛德海', voyage: '40', startPort: 'GUANGZHOU', startTime: '2026-04-23 07:48', endPort: 'SAMALAJU', completeTime: 'E2026-05-30 12:00', port: 'SAMALAJU', zone: '+8', purpose: 'D', arrival: 'E2026-05-20 21:00', departure: 'E2026-05-20 21:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: '远海白玉', voyage: '1', startPort: 'NANTONG', startTime: '2026-04-20 20:38', endPort: 'RAVENNA', completeTime: 'E2026-06-28 06:25', port: 'DONGGUAN', zone: '+8', purpose: 'L', arrival: 'E2026-05-17 13:00', departure: 'E2026-05-17 13:00', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', completeAlert: true, arrivalAlert: true, departureAlert: true },
+        { ship: 'OCEAN BAO', voyage: '2', startPort: 'HOUSTON', startTime: '2026-03-25 23:42', endPort: 'NANTONG', completeTime: 'E2026-06-06 21:46', port: 'NANTONG', zone: '+08', purpose: 'D', arrival: 'E2026-05-31 05:46', departure: 'E2026-05-31 05:46', cargoStart: '', cargoEnd: '', fuelStart: '', fuelEnd: '', creator: '', startAlert: true, completeAlert: true, arrivalAlert: true, departureAlert: true },
       ],
       dispatchCostRows: [
-        { ship: 'RUBINA-613639', voyage: '6', port: 'ZHENJIANG', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '' },
-        { ship: 'CHAILEASE BLOSSOM-613640', voyage: '1', port: 'GUANGZHOU', purpose: 'D', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
-        { ship: 'GREAT FLOURISH-613120', voyage: '11', port: 'TIANJIN', purpose: 'D', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
-        { ship: 'HYDRUS-613885', voyage: '1', port: 'ZHENJIANG', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '' },
-        { ship: '京鲁海-P09005', voyage: '81', port: 'TIANJIN', purpose: 'L', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
-        { ship: 'MAGSENGER 12-613236', voyage: '24', port: 'TIANJIN', purpose: 'D', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '' },
-        { ship: 'CL LOUDI-613672', voyage: '6', port: 'ZHENJIANG', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '' },
+        { ship: '宝月岭-G0A660', voyage: '328', port: 'TAIZHOU(js)', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '2026' },
+        { ship: 'OCEAN BAO-613172', voyage: '2', port: 'NANTONG', purpose: 'D', discount: '引水费', note: '请注意及时申请', eta: '2026' },
+        { ship: '盛吉海-T05001', voyage: '35', port: 'TIANJIN', purpose: 'D', discount: '停泊费、拖轮费', note: '须船舶抵港前3个工作日预先申请', eta: '2026' },
       ],
-      dispatchOwnerCostRows: [
-        { ship: '玉霄峰-G0B958', voyage: '80', port: 'GDYNIA', amount: '3558EUR', imported: '否' },
-        { ship: '云密峰-G0A207', voyage: '110', port: 'CAMPANA', amount: '16663USD', imported: '否' },
-        { ship: '玉霄峰-G0B958', voyage: '88', port: 'AMSTERDAM', amount: '6485EUR', imported: '否' },
-        { ship: '玉霄峰-G0B958', voyage: '83', port: 'SUEZ CANAL', amount: '13660USD', imported: '否' },
-        { ship: '远安海-Q03140', voyage: '127', port: 'HONG KONG', amount: '5359.48USD', imported: '否' },
-        { ship: '玉霄峰-G0B958', voyage: '74', port: 'SINGAPORE', amount: '38.71SGD', imported: '否' },
-        { ship: '云密峰-G0A207', voyage: '103', port: 'ROTTERDAM', amount: '6700EUR', imported: '否' },
-      ],
+      dispatchOwnerCostRows: [],
       dispatchSpecialRows: [
-        { ship: 'FENG HUANG FENG', voyage: '103', route: '岚津加勒比', arrival: '2026-08-03 22:24:00', departure: 'E2026-10-02 00:32:47' },
-        { ship: 'CL JIUJIANG', voyage: '17', route: '巴巴荷美', arrival: '2026-06-21 15:00:00', departure: 'E2026-08-17 19:40:00' },
-        { ship: 'BBG GUIJIANG', voyage: '15', route: '法直美巴', arrival: '2026-08-13 19:48:00', departure: 'E2026-09-26 13:00:00' },
-        { ship: 'BBG GUIJIANG', voyage: '14', route: '英美美法直法', arrival: '2026-06-06 15:18:00', departure: '2026-08-13 19:48:00' },
-        { ship: 'GREAT FLOURISH', voyage: '7', route: '意直伦德德', arrival: '2025-10-08 19:10:00', departure: '2025-11-23 02:30:00' },
-        { ship: 'MEDI OITA', voyage: '9', route: '法美土土', arrival: '2026-07-29 17:06:00', departure: 'E2026-10-02 01:03:00' },
-        { ship: 'MEDI OITA', voyage: '8', route: '巴巴群法法', arrival: '2026-06-13 13:42:00', departure: '2026-07-29 17:06:00' },
+        { ship: 'YUAN HAI BAI YU', voyage: '1', route: '通通香港明意加', arrival: '2026-04-20 20:38:00', departure: 'E2026-06-28 06:25:41' },
       ],
-      dispatchRepairRows: [
-        { ship: 'YUN MI FENG', voyage: '139', port: 'GUANGZHOU', arrival: '2026-06-13 10:36:00', departure: 'E2026-10-07 18:40:41' },
-      ],
+      dispatchRepairRows: [],
 
       loading: true,        // 骨架屏
       animated: false,      // 进度条动效开关（挂载后从 0 增长）
