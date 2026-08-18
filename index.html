@@ -261,7 +261,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 5l1.5 5.5L19 12l-5.5 1.5L12 19l-1.5-5.5L5 12l5.5-1.5z"/>
         </svg>
       </div>
-      <span class="text-[15px] font-bold tracking-wide">智能调度系统</span>
+      <span class="text-[15px] font-bold tracking-wide">智能调度</span>
     </div>
 
     <!-- Center: nav -->
@@ -303,13 +303,13 @@
     <!-- ════════ 2. LEFT ICON SIDEBAR ════════ -->
     <!-- 左侧图标栏已移除 -->
 
-    <!-- ════════ 3. LEFT PANEL — 我关注的船舶 (20%) ════════ -->
+    <!-- ════════ 3. LEFT PANEL — 船舶列表 (20%) ════════ -->
     <section v-show="activeNav === 'checklist' && !reportMode" class="w-[20%] min-w-[220px] shrink-0 bg-white border-r border-slate-200 flex flex-col min-h-0">
-      <div class="px-4 pt-4 pb-3 flex items-center justify-between shrink-0">
-        <h2 class="text-[14px] font-bold text-slate-800 flex items-center gap-2">
-          <span class="w-1 h-4 rounded-full bg-corp-600"></span>我关注的船舶
-        </h2>
-        <span class="text-[11px] text-slate-400">{{ vessels.length }} 艘</span>
+      <div class="px-3 pt-4 pb-3 shrink-0">
+        <div class="flex items-center justify-between border-b border-slate-200">
+          <button v-for="tab in vesselTabs" :key="tab.id" @click="vesselTab = tab.id" :class="['h-9 border-b-2 px-1 text-[12px] font-semibold transition-colors', vesselTab === tab.id ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-500 hover:text-corp-700']">{{ tab.label }}</button>
+        </div>
+        <div class="pt-2 text-right text-[11px] text-slate-400">{{ sortedVessels.length }} 艘</div>
       </div>
       <div class="flex-1 overflow-y-auto slim-scroll px-3 pb-3 space-y-2.5">
         <transition-group name="fade">
@@ -1532,7 +1532,6 @@ createApp({
       /* ────────── */
       navItems: [
         { id: 'checklist',  label: 'CHECKLIST',       type: 'tab' },
-        { id: 'bms',        label: 'BMS',              type: 'link', href: 'http://bms.ibulk.coscoshipping.com/' },
         { id: 'dispatch',   label: '调度工作台',        type: 'tab' },
         { id: 'knowledge',  label: '调度知识库',    type: 'tab' },
         { id: 'assistant',  label: '智能助手',          type: 'tab' },
@@ -1645,17 +1644,23 @@ createApp({
         { name: '统计', svg: icon('<path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />') },
       ],
 
+      vesselTabs: [
+        { id: 'mine', label: '我的船舶' },
+        { id: 'team', label: '团队船舶' },
+        { id: 'followed', label: '关注船舶' },
+      ],
+      vesselTab: 'mine',
       vessels: [
-        { name: 'BAO NING LING', voyage: '150', status: '执行中', route: 'SHANGHAI → GHENT-BEGHE', active: true, progress: 45, stage: 3, pinned: true },
-        { name: 'SHI LONG LING', voyage: '138', status: '待启航', route: 'MASAN-KRMAS → NEW ORLEANS-USNOL', active: false, progress: 12, stage: 1, pinned: false },
-        { name: 'SHAN HU HAI', voyage: '104', status: '待卸货', route: 'NANTONG → NAPLES-ITNAP', active: false, progress: 78, stage: 5, pinned: false },
-        { name: 'HU PO HAI', voyage: '95', status: '航行中', route: 'DALIAN -> SINGAPORE-SGSIN', active: false, progress: 58, stage: 4, pinned: false },
-        { name: 'LV SONG HAI', voyage: '83', status: '待启航', route: 'GUANGZHOU -> MANILA-PHMNL', active: false, progress: 10, stage: 1, pinned: false },
-        { name: 'LAN BAO HAI', voyage: '91', status: '航行中', route: 'QINGDAO -> BUSAN-KRPUS', active: false, progress: 62, stage: 4, pinned: false },
-        { name: 'JIAN GUO HAI', voyage: '88', status: '待卸货', route: 'TIANJIN -> HAMBURG-DEHAM', active: false, progress: 72, stage: 5, pinned: false },
-        { name: 'XIU YU HAI', voyage: '77', status: '航行中', route: 'SHANGHAI -> VANCOUVER-CAVAN', active: false, progress: 55, stage: 4, pinned: false },
-        { name: 'JIU FENG LING', voyage: '122', status: '待启航', route: 'NINGBO -> HOUSTON-USHOU', active: false, progress: 8, stage: 1, pinned: false },
-        { name: 'ZHEN ZHU HAI', voyage: '102', status: '航行中', route: 'SHANGHAI -> ROTTERDAM-NLRTM', active: false, progress: 65, stage: 4, pinned: true },
+        { name: 'BAO NING LING', voyage: '150', status: '执行中', route: 'SHANGHAI → GHENT-BEGHE', active: true, progress: 45, stage: 3, pinned: true, group: 'mine' },
+        { name: 'SHI LONG LING', voyage: '138', status: '待启航', route: 'MASAN-KRMAS → NEW ORLEANS-USNOL', active: false, progress: 12, stage: 1, pinned: false, group: 'mine' },
+        { name: 'SHAN HU HAI', voyage: '104', status: '待卸货', route: 'NANTONG → NAPLES-ITNAP', active: false, progress: 78, stage: 5, pinned: false, group: 'mine' },
+        { name: 'HU PO HAI', voyage: '95', status: '航行中', route: 'DALIAN -> SINGAPORE-SGSIN', active: false, progress: 58, stage: 4, pinned: false, group: 'mine' },
+        { name: 'LV SONG HAI', voyage: '83', status: '待启航', route: 'GUANGZHOU -> MANILA-PHMNL', active: false, progress: 10, stage: 1, pinned: false, group: 'team' },
+        { name: 'LAN BAO HAI', voyage: '91', status: '航行中', route: 'QINGDAO -> BUSAN-KRPUS', active: false, progress: 62, stage: 4, pinned: false, group: 'team' },
+        { name: 'JIAN GUO HAI', voyage: '88', status: '待卸货', route: 'TIANJIN -> HAMBURG-DEHAM', active: false, progress: 72, stage: 5, pinned: false, group: 'team' },
+        { name: 'XIU YU HAI', voyage: '77', status: '航行中', route: 'SHANGHAI -> VANCOUVER-CAVAN', active: false, progress: 55, stage: 4, pinned: false, group: 'team' },
+        { name: 'JIU FENG LING', voyage: '122', status: '待启航', route: 'NINGBO -> HOUSTON-USHOU', active: false, progress: 8, stage: 1, pinned: false, group: 'team' },
+        { name: 'ZHEN ZHU HAI', voyage: '102', status: '航行中', route: 'SHANGHAI -> ROTTERDAM-NLRTM', active: false, progress: 65, stage: 4, pinned: true, group: 'team' },
       ],
       flatLimit: 5, // 节点卡片默认展示条数
 
@@ -2039,7 +2044,10 @@ createApp({
       return this.vessels.find(v => v.active) || this.vessels[0]
     },
     sortedVessels() {
-      return [...this.vessels].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+      const rows = this.vesselTab === 'followed'
+        ? this.vessels.filter(v => v.pinned)
+        : this.vessels.filter(v => v.group === this.vesselTab)
+      return [...rows].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
     },
     /* ── 根据 Tab 切换推荐问题 ── */
     currentSuggestions() {
