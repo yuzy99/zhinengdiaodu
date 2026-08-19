@@ -109,6 +109,11 @@
   .tree-children-leave-active { transition: max-height .25s ease, opacity .15s ease; overflow: hidden; }
   .tree-children-leave-to { max-height: 0; opacity: 0; }
 
+  /* 底部重点物资抽屉 */
+  .metric-panel-enter-active, .metric-panel-leave-active { transition: max-height .32s ease, opacity .22s ease; overflow: hidden; }
+  .metric-panel-enter-from, .metric-panel-leave-to { max-height: 0; opacity: 0; }
+  .metric-panel-enter-to, .metric-panel-leave-from { max-height: 330px; opacity: 1; }
+
   /* 证书即将到期呼吸脉冲 */
   @keyframes statusPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
   .status-expiring { animation: statusPulse 2s ease-in-out infinite; }
@@ -407,18 +412,16 @@
           <template v-for="(step, i) in workflowSteps" :key="step.key">
           <div v-if="step.kind === 'group'" :class="['flex shrink-0 items-center rounded-xl border p-1 transition-all', expandedPortGroups[step.nodeId] ? 'border-blue-200 bg-blue-50/25' : 'border-slate-200 bg-white']">
             <button @click="togglePortGroup(step.nodeId)" :class="['flex shrink-0 items-center text-left transition-all', expandedPortGroups[step.nodeId] ? 'min-w-[68px] gap-1 bg-transparent px-1.5 py-1 text-slate-400 hover:text-blue-600' : 'min-w-[118px] gap-2 rounded-lg px-2 py-1.5 text-slate-700 hover:bg-blue-50']">
-              <span v-if="!expandedPortGroups[step.nodeId]" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 6.75h15M6.75 3.75v6m10.5-6v6M5.25 12h13.5M5.25 16.5h13.5M5.25 21h13.5" /></svg>
-              </span>
+              <svg v-if="!expandedPortGroups[step.nodeId]" viewBox="0 0 36 36" class="h-6 w-6 shrink-0"><circle cx="18" cy="18" r="15" fill="none" stroke="#e9eef5" stroke-width="3.2"/><circle class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(step)" stroke-width="3.2" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? step.percent : 0)" transform="rotate(-90 18 18)"/><path v-if="step.status === 'done'" d="M12 18.5l3.4 3.4L24 13" fill="none" stroke="#10b981" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><text v-else-if="step.status === 'active'" x="18" y="19.2" text-anchor="middle" dominant-baseline="central" fill="#2563eb" font-size="11" font-weight="800">{{ step.remaining }}</text><path v-else d="M18 12v6l4 2" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span class="min-w-0 flex-1"><span :class="['block truncate font-bold leading-tight', expandedPortGroups[step.nodeId] ? 'text-[10px] text-slate-400' : 'text-[11.5px]']">{{ step.title }}</span><span v-if="!expandedPortGroups[step.nodeId]" class="mt-0.5 block truncate text-[9.5px] text-slate-400">{{ step.subtitle }}</span></span>
               <span :class="['font-semibold text-blue-500', expandedPortGroups[step.nodeId] ? 'text-[8.5px]' : 'text-[9px]']">{{ expandedPortGroups[step.nodeId] ? '收起' : '展开' }}</span>
             </button>
             <template v-if="expandedPortGroups[step.nodeId]">
               <span class="relative mx-1 h-0 w-6 shrink-0 border-t-2 border-dotted border-blue-300"><svg class="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 bg-blue-50 p-0.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 14.25h18l-2.5 4.5h-13L3 14.25zM6.5 14.25V9.5h3.25v4.75m.75 0V8h3.25v6.25m.75 0V9.5h3.25v4.75M5 19.5c1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0" /></svg></span>
               <template v-for="(portStep, portIndex) in step.children" :key="portStep.key">
-                <button @click="selectWorkflowStep(portStep)" :class="['flex min-w-[120px] shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 transition-all', isActiveWorkflowStep(portStep) ? 'bg-corp-900 text-white shadow-md shadow-corp-900/15' : portStep.status === 'done' ? 'bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100' : 'bg-white text-slate-600 hover:bg-slate-100/70']">
-                  <svg viewBox="0 0 36 36" class="h-6 w-6 shrink-0"><circle cx="18" cy="18" r="15" fill="none" :stroke="isActiveWorkflowStep(portStep) ? 'rgba(255,255,255,0.22)' : '#e9eef5'" stroke-width="3.2"/><circle class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(portStep)" stroke-width="3.2" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? portStep.percent : 0)" transform="rotate(-90 18 18)"/><path v-if="portStep.status === 'done'" d="M12 18.5l3.4 3.4L24 13" fill="none" :stroke="isActiveWorkflowStep(portStep) ? '#fff' : '#10b981'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><text v-else x="18" y="19.2" text-anchor="middle" dominant-baseline="central" :fill="isActiveWorkflowStep(portStep) ? '#fff' : '#64748b'" :font-size="portStep.kind === 'transit' ? 9 : 11" font-weight="700">{{ portStep.kind === 'transit' ? '航' : Math.floor(portIndex / 2) + 1 }}</text></svg>
-                  <span class="min-w-0"><span class="block truncate text-[10.5px] font-bold">{{ portStep.title }}</span><span :class="['mt-0.5 block max-w-[72px] truncate text-[9px]', isActiveWorkflowStep(portStep) ? 'text-slate-300' : 'text-slate-400']">{{ portStep.subtitle }}</span></span>
+                <button @click="selectWorkflowStep(portStep)" :class="['flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 transition-all', portStep.kind === 'port' ? 'min-w-[158px]' : 'min-w-[120px]', isActiveWorkflowStep(portStep) ? 'bg-corp-900 text-white shadow-md shadow-corp-900/15' : portStep.status === 'done' ? 'bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100' : 'bg-white text-slate-600 hover:bg-slate-100/70']">
+                  <svg viewBox="0 0 36 36" class="h-6 w-6 shrink-0"><circle cx="18" cy="18" r="15" fill="none" :stroke="isActiveWorkflowStep(portStep) ? 'rgba(255,255,255,0.22)' : '#e9eef5'" stroke-width="3.2"/><circle class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(portStep)" stroke-width="3.2" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? portStep.percent : 0)" transform="rotate(-90 18 18)"/><path v-if="portStep.status === 'done'" d="M12 18.5l3.4 3.4L24 13" fill="none" :stroke="isActiveWorkflowStep(portStep) ? '#fff' : '#10b981'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><text v-else-if="portStep.status === 'active'" x="18" y="19.2" text-anchor="middle" dominant-baseline="central" :fill="isActiveWorkflowStep(portStep) ? '#fff' : '#2563eb'" font-size="11" font-weight="800">{{ portStep.remaining }}</text><path v-else d="M18 12v6l4 2" fill="none" :stroke="isActiveWorkflowStep(portStep) ? '#fff' : '#94a3b8'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span class="min-w-0"><span class="block truncate text-[10.5px] font-bold">{{ portStep.title }}</span><span :class="['mt-0.5 block truncate text-[9px]', portStep.kind === 'port' ? 'max-w-[112px]' : 'max-w-[72px]', isActiveWorkflowStep(portStep) ? 'text-slate-300' : 'text-slate-400']">{{ portStep.subtitle }}</span><span v-if="portStep.kind === 'port'" :class="['mt-0.5 block whitespace-nowrap text-[8px] tabular-nums', isActiveWorkflowStep(portStep) ? 'text-sky-200' : portStep.arrived ? 'text-emerald-600' : 'text-amber-600']">{{ portStep.timeLabel }} {{ portStep.timeValue }}</span></span>
                 </button>
                 <span v-if="portIndex < step.children.length - 1" :class="['relative mx-1 h-0 w-6 shrink-0 border-t-2 border-dotted', portStep.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"><svg :class="['absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 bg-blue-50 p-0.5', portStep.status === 'done' ? 'text-emerald-500' : 'text-slate-400']" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 14.25h18l-2.5 4.5h-13L3 14.25zM6.5 14.25V9.5h3.25v4.75m.75 0V8h3.25v6.25m.75 0V9.5h3.25v4.75M5 19.5c1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0" /></svg></span>
               </template>
@@ -438,8 +441,9 @@
               <g v-if="step.status === 'done'" :class="isActiveWorkflowStep(step) ? 'text-white' : 'text-emerald-500'" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 18.5l3.4 3.4L24 13"/>
               </g>
-              <text v-else x="18" y="19.2" text-anchor="middle" dominant-baseline="central"
-                :fill="isActiveWorkflowStep(step) ? '#ffffff' : '#64748b'" font-size="12.5" font-weight="700">{{ i + 1 }}</text>
+              <text v-else-if="step.status === 'active'" x="18" y="19.2" text-anchor="middle" dominant-baseline="central"
+                :fill="isActiveWorkflowStep(step) ? '#ffffff' : '#2563eb'" font-size="11" font-weight="800">{{ step.remaining }}</text>
+              <path v-else d="M18 12v6l4 2" fill="none" :stroke="isActiveWorkflowStep(step) ? '#fff' : '#94a3b8'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <div class="flex flex-col min-w-0">
               <span :class="['font-bold truncate leading-tight', step.status === 'done' ? 'text-[10.5px]' : 'text-[11.5px]', isActiveWorkflowStep(step) ? 'text-white' : step.status === 'done' ? 'text-emerald-700' : 'text-slate-700']">{{ step.title }}</span>
@@ -1244,11 +1248,75 @@
         </div>
       </div>
 
+      <!-- ════════ ACCOUNTING ANALYSIS TAB ════════ -->
+      <div v-if="activeNav === 'accounting'" class="flex-1 min-w-0 min-h-0 overflow-y-auto slim-scroll bg-slate-100 p-4">
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-3">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-corp-600">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h14.25M7.5 12l3-3 2.25 2.25L17.25 6" /></svg>
+            </div>
+            <div><h1 class="text-[15px] font-extrabold text-slate-800">核算分析</h1><p class="mt-0.5 text-[10.5px] text-slate-400">完航收入及船型结构分析</p></div>
+            <div class="ml-5 flex items-center gap-2 text-[11.5px]"><span class="text-slate-500">时间</span><input v-model="analysisMonth" type="month" class="h-8 rounded-lg border border-slate-200 px-3 text-slate-600 outline-none focus:border-corp-600 focus:ring-2 focus:ring-blue-100" /></div>
+            <button @click="queryAccounting" class="ml-auto flex h-8 items-center gap-1.5 rounded-lg bg-blue-500 px-4 text-[11.5px] font-semibold text-white shadow-sm hover:bg-blue-600"><svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><circle cx="11" cy="11" r="6.5"/><path stroke-linecap="round" d="M16 16l4 4"/></svg>查询</button>
+          </div>
+          <div class="flex items-center gap-2 border-b border-slate-100 px-5 py-2 text-[10px] text-slate-400"><span class="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-500">备注</span>最新数据截止至 {{ analysisMonthLabel }}，主数据来源自 SAP 系统，每月8号抽取上月数据一次。</div>
+
+          <div class="px-5 py-4">
+            <div class="mb-4 flex items-center justify-between">
+              <div class="flex items-center gap-2"><span class="h-4 w-1 rounded-full bg-corp-600"></span><span class="text-[13px] font-bold text-corp-800">变动分析</span></div>
+              <div class="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                <button @click="analysisMetric = 'revenue'" :class="['rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors', analysisMetric === 'revenue' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500']"><span class="mr-1">◉</span>收入数</button>
+                <button @click="analysisMetric = 'voyage'" :class="['rounded-md px-3 py-1.5 text-[11px] font-semibold transition-colors', analysisMetric === 'voyage' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500']"><span class="mr-1">○</span>航次数</button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+              <section class="rounded-xl border border-slate-200 bg-white p-3">
+                <h2 class="text-center text-[12px] font-bold text-slate-700">当月完航月度{{ analysisMetric === 'revenue' ? '收入' : '航次数' }}</h2>
+                <svg viewBox="0 0 520 220" class="mt-2 h-[190px] w-full" aria-label="月度趋势图">
+                  <g stroke="#e2e8f0" stroke-width="1"><path d="M42 20H500M42 52H500M42 84H500M42 116H500M42 148H500M42 180H500"/></g>
+                  <g fill="#94a3b8" font-size="9"><text x="5" y="23">50,000</text><text x="5" y="55">40,000</text><text x="5" y="87">30,000</text><text x="5" y="119">20,000</text><text x="5" y="151">10,000</text><text x="25" y="183">0</text></g>
+                  <path d="M42 100 L84 116 L126 71 L168 74 L210 55 L252 52 L294 49 L336 23 L378 62 L420 65 L462 46 L500 180 L500 180 L42 180 Z" fill="#3b82f6" opacity=".09"/>
+                  <path d="M42 87 L84 97 L126 100 L168 90 L210 90 L252 97 L294 74 L336 52 L378 62 L420 52 L462 68 L500 46 L500 180 L42 180 Z" fill="#84cc16" opacity=".08"/>
+                  <polyline points="42,100 84,116 126,71 168,74 210,55 252,52 294,49 336,23 378,62 420,65 462,46 500,180" fill="none" stroke="#4f72cf" stroke-width="2.2"/>
+                  <polyline points="42,87 84,97 126,100 168,90 210,90 252,97 294,74 336,52 378,62 420,52 462,68 500,46" fill="none" stroke="#8acb65" stroke-width="2.2"/>
+                  <g fill="#4f72cf"><circle v-for="p in trendPoints2025" :key="'a'+p.x" :cx="p.x" :cy="p.y" r="2.7"/></g><g fill="#8acb65"><circle v-for="p in trendPoints2024" :key="'b'+p.x" :cx="p.x" :cy="p.y" r="2.7"/></g>
+                  <g fill="#64748b" font-size="9" text-anchor="middle"><text v-for="(m,i) in analysisMonths" :key="m" :x="42+i*41.64" y="199">{{ m }}</text></g>
+                </svg>
+                <div class="flex justify-center gap-5 text-[9.5px] text-slate-500"><span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-[#4f72cf]"></i>2025</span><span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-[#8acb65]"></i>2024</span></div>
+              </section>
+
+              <section class="rounded-xl border border-slate-200 bg-white p-3">
+                <h2 class="text-center text-[12px] font-bold text-slate-700">当月完航累计{{ analysisMetric === 'revenue' ? '收入同比' : '航次数同比' }}</h2>
+                <div class="mt-5 flex h-[178px] items-end justify-center gap-7 border-b border-slate-200 px-6">
+                  <div class="flex w-20 flex-col items-center"><span class="mb-1 text-[9px] text-slate-500">398,650</span><div class="h-[145px] w-16 rounded-t bg-[#5573c8]"></div><span class="mt-1.5 text-[9.5px] text-slate-500">本年累计</span></div>
+                  <div class="flex w-20 flex-col items-center"><span class="mb-1 text-[9px] text-slate-500">349,120</span><div class="h-[127px] w-16 rounded-t bg-[#8dcc72]"></div><span class="mt-1.5 text-[9.5px] text-slate-500">上年同期</span></div>
+                  <div class="flex w-20 flex-col items-center"><span class="mb-1 text-[9px] text-slate-500">49,530</span><div class="h-[28px] w-16 rounded-t bg-[#f9c44f]"></div><span class="mt-1.5 text-[9.5px] text-slate-500">差额</span></div>
+                </div>
+                <div class="mt-7 flex justify-center gap-4 text-[9.5px] text-slate-500"><span><i class="mr-1 inline-block h-2 w-3 rounded-sm bg-[#5573c8]"></i>本年累计</span><span><i class="mr-1 inline-block h-2 w-3 rounded-sm bg-[#8dcc72]"></i>上年同期</span><span><i class="mr-1 inline-block h-2 w-3 rounded-sm bg-[#f9c44f]"></i>差额</span></div>
+              </section>
+
+              <section class="rounded-xl border border-slate-200 bg-white p-3">
+                <h2 class="text-center text-[12px] font-bold text-slate-700">当月完航累计收入总额（分船型）</h2>
+                <div class="mt-5 flex items-center justify-center gap-6">
+                  <div class="h-40 w-40 rounded-full shadow-inner" style="background:conic-gradient(#5573c8 0 16.57%,#8dcc72 16.57% 18.48%,#f9c44f 18.48% 47.22%,#ef6265 47.22% 84.19%,#6eb8d2 84.19% 100%)"></div>
+                  <div class="space-y-2 text-[9.5px] text-slate-600"><div v-for="type in vesselRevenueTypes" :key="type.name" class="flex items-center gap-2"><i :style="{background:type.color}" class="h-2.5 w-2.5 rounded-sm"></i><span class="w-12">{{ type.name }}</span><b class="tabular-nums text-slate-700">{{ type.rate }}</b></div></div>
+                </div>
+              </section>
+            </div>
+
+            <div class="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <table class="w-full text-[11px]"><thead class="bg-blue-50/80 text-corp-700"><tr><th class="px-4 py-2 text-left">项目</th><th class="px-4 py-2 text-right">本期（万美元）</th><th class="px-4 py-2 text-right">上期（万美元）</th><th class="px-4 py-2 text-right">环比（%）</th></tr></thead><tbody class="divide-y divide-slate-100"><tr v-for="row in accountingRows" :key="row.item" class="hover:bg-slate-50"><td class="px-4 py-2 font-semibold text-slate-700">{{ row.item }}</td><td class="px-4 py-2 text-right tabular-nums">{{ row.current }}</td><td class="px-4 py-2 text-right tabular-nums">{{ row.previous }}</td><td :class="['px-4 py-2 text-right font-semibold tabular-nums', row.change.startsWith('-') ? 'text-emerald-600' : 'text-blue-600']">{{ row.change }}</td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
     <!-- ════════ 5. RIGHT PANEL — 知识资源库 (20%) ════════ -->
     <aside v-show="(activeNav === 'checklist' || activeNav === 'knowledge') && !reportMode" class="w-[20%] min-w-[220px] shrink-0 border-l border-slate-200 bg-white flex flex-col min-h-0">
       <div class="px-4 pt-4 pb-3 shrink-0 flex items-center justify-between">
-        <h2 class="text-[14px] font-bold text-slate-800 flex items-center gap-2">
-          <span class="w-1 h-4 rounded-full bg-corp-600"></span>知识资源库
+        <h2 class="min-w-0 text-[14px] font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-1 h-4 rounded-full bg-corp-600"></span><span class="shrink-0">知识资源库</span><span v-if="activeNav === 'checklist'" class="truncate text-[9.5px] font-medium text-corp-600">{{ activeVessel.name }}</span>
         </h2>
         <span class="text-[10.5px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">共 {{ totalFileCount }} 份</span>
       </div>
@@ -1266,7 +1334,7 @@
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" v-html="cat.iconPath"></svg>
             </span>
             <span class="flex-1 text-[13px] font-semibold text-slate-800 truncate">{{ cat.label }}</span>
-            <span class="text-[10.5px] text-slate-400 font-medium tabular-nums shrink-0">{{ cat.count }}</span>
+            <span class="text-[10.5px] text-slate-400 font-medium tabular-nums shrink-0">{{ knowledgeCategoryCount(cat) }}</span>
             <svg :class="['w-4 h-4 text-slate-300 shrink-0 transition-transform duration-300', cat.open ? 'rotate-90' : '']"
               fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -1279,7 +1347,7 @@
 
               <!-- ────── 船舶档案: 船舶 → 证书 ────── -->
               <template v-if="cat.type === 'ship-archive'">
-                <div v-for="ship in cat.children" :key="ship.id" class="mb-0.5">
+                <div v-for="ship in cat.children" :key="ship.id" :class="['mb-0.5', knowledgeShipMatches(ship) ? '' : 'hidden']">
 
                   <!-- 二级行: 船舶名称 -->
                   <button @click="toggleAndSelectKb(ship)"
@@ -1319,7 +1387,7 @@
 
               <!-- ────── 航次档案: 船 → 航次 → 单证文件 ────── -->
               <template v-if="cat.type === 'voyage-archive'">
-                <div v-for="vaship in cat.children" :key="vaship.id" class="mb-0.5">
+                <div v-for="vaship in cat.children" :key="vaship.id" :class="['mb-0.5', knowledgeShipMatches(vaship) ? '' : 'hidden']">
 
                   <!-- 二级行: 船舶名称 -->
                   <button @click="toggleAndSelectKb(vaship)"
@@ -1391,7 +1459,7 @@
 
               <!-- ────── 港口资料: 船 → 航次 → 港口 → 文件 ────── -->
               <template v-if="cat.type === 'port-data'">
-                <div v-for="pship in cat.children" :key="pship.id" class="mb-0.5">
+                <div v-for="pship in cat.children" :key="pship.id" :class="['mb-0.5', knowledgeShipMatches(pship) ? '' : 'hidden']">
 
                   <!-- 三级行: 船舶名称 -->
                   <button @click="toggleAndSelectKb(pship)"
@@ -1487,7 +1555,66 @@
     </aside>
   </div>
 
-  <!-- ══════════════ 6. BOTTOM STATUS BAR ══════════════ -->
+  <!-- ══════════════ 6. BOTTOM BUSINESS METRICS ══════════════ -->
+  <section v-show="activeNav === 'checklist' && !reportMode" class="shrink-0 border-t border-slate-200 bg-white z-20 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]">
+    <button @click="metricsExpanded = !metricsExpanded" class="flex h-10 w-full items-center gap-4 px-5 text-left hover:bg-slate-50 transition-colors">
+      <span class="flex items-center gap-2 text-[12px] font-bold text-corp-800">
+        <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5V10.8m5 8.7V5.5m5 14v-6.2m5 6.2V8" /></svg>
+        </span>
+        重点物资
+      </span>
+      <span class="h-4 w-px bg-slate-200"></span>
+      <span v-for="item in commodityMetrics" :key="item.name" class="flex min-w-0 items-center gap-2 text-[11px]">
+        <span :class="['h-1.5 w-1.5 rounded-full', item.dotClass]"></span>
+        <span :class="['font-semibold', item.nameClass]">{{ item.name }}</span>
+        <span class="text-slate-400">完成</span>
+        <b class="tabular-nums text-corp-700">{{ item.completedRate }}</b>
+      </span>
+      <span class="flex-1"></span>
+      <span class="text-[10.5px] font-medium text-slate-400">{{ metricsExpanded ? '收起详情' : '展开详情' }}</span>
+      <svg :class="['h-4 w-4 text-slate-400 transition-transform', metricsExpanded ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+    </button>
+
+    <transition name="metric-panel">
+      <div v-if="metricsExpanded" class="h-[300px] overflow-y-auto slim-scroll border-t border-slate-100 bg-slate-50/70 px-5 py-3">
+        <div class="grid grid-cols-3 gap-3">
+          <article v-for="item in commodityMetrics" :key="item.name" class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <span :class="['text-[13px] font-extrabold', item.nameClass]">{{ item.name }}</span>
+              <span :class="['rounded-full px-2 py-0.5 text-[9.5px] font-semibold', item.variance < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500']">偏离值 {{ item.variance }}</span>
+            </div>
+            <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10.5px]">
+              <div><span class="text-slate-400">目标值</span><b class="ml-1 text-corp-700 tabular-nums">{{ item.target }}</b></div>
+              <div><span class="text-slate-400">完成率</span><b class="ml-1 text-corp-700 tabular-nums">{{ item.completedRate }}</b></div>
+              <div><span class="text-slate-400">已完成</span><b class="ml-1 text-blue-600 tabular-nums">{{ item.completed }}</b></div>
+              <div><span class="text-slate-400">执行中</span><b class="ml-1 text-blue-600 tabular-nums">{{ item.executing }}</b></div>
+              <div class="col-span-2"><span class="text-slate-400">锁定值</span><b class="ml-1 text-corp-700 tabular-nums">{{ item.locked }}</b></div>
+            </div>
+            <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div :class="['h-full rounded-full', item.barClass]" :style="{ width: item.completedRate }"></div></div>
+          </article>
+        </div>
+
+        <div class="mt-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center gap-5 border-b border-slate-200 px-3">
+            <button @click.stop="metricTab = 'customer'" :class="['h-9 border-b-2 text-[11.5px] font-semibold', metricTab === 'customer' ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-500']">指标客户</button>
+            <button @click.stop="metricTab = 'flow'" :class="['h-9 border-b-2 text-[11.5px] font-semibold', metricTab === 'flow' ? 'border-corp-600 text-corp-700' : 'border-transparent text-slate-500']">货物流向</button>
+          </div>
+          <div v-if="metricTab === 'customer'" class="overflow-x-auto">
+            <table class="w-full text-[10.5px]">
+              <thead class="bg-slate-50 text-slate-500"><tr><th class="px-3 py-1.5 text-left font-semibold">客户</th><th class="px-3 py-1.5 text-right font-semibold">占比</th><th class="px-3 py-1.5 text-right font-semibold">货量/万吨</th><th class="px-3 py-1.5 text-left font-semibold">客户评级</th><th class="px-3 py-1.5 text-left font-semibold">主要进口国家</th></tr></thead>
+              <tbody class="divide-y divide-slate-100"><tr v-for="row in metricCustomers" :key="row.name" class="hover:bg-blue-50/40"><td class="px-3 py-1.5 font-semibold text-corp-700">{{ row.name }}</td><td class="px-3 py-1.5 text-right tabular-nums">{{ row.share }}</td><td class="px-3 py-1.5 text-right tabular-nums" :class="row.volumeClass">{{ row.volume }}</td><td class="px-3 py-1.5">{{ row.rating }}</td><td class="max-w-[220px] truncate px-3 py-1.5 text-slate-600">{{ row.countries }}</td></tr></tbody>
+            </table>
+          </div>
+          <div v-else class="grid grid-cols-4 gap-2 p-3">
+            <div v-for="flow in metricFlows" :key="flow.country" class="rounded-lg bg-slate-50 px-3 py-2"><div class="text-[11px] font-bold text-slate-700">{{ flow.country }}</div><div class="mt-1 truncate text-[9.5px] text-slate-500">{{ flow.customers }}</div></div>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </section>
+
+  <!-- ══════════════ 7. BOTTOM STATUS BAR ══════════════ -->
   <footer v-show="activeNav === 'checklist' && !reportMode" class="h-11 shrink-0 bg-white border-t border-slate-200 flex items-center px-5 gap-6 z-20 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
     <!-- Left: white stats -->
     <div class="flex items-center gap-5">
@@ -1561,6 +1688,7 @@ createApp({
       navItems: [
         { id: 'checklist',  label: 'CHECKLIST',       type: 'tab' },
         { id: 'dispatch',   label: '调度工作台',        type: 'tab' },
+        { id: 'accounting', label: '核算分析',          type: 'tab' },
         { id: 'knowledge',  label: '调度知识库',    type: 'tab' },
         { id: 'assistant',  label: '智能助手',          type: 'tab' },
       ],
@@ -2079,6 +2207,42 @@ createApp({
         portDiscount: { count: 2, alert: true },
         canalDiscount: { count: 1, alert: false },
       },
+      metricsExpanded: false,
+      metricTab: 'customer',
+      commodityMetrics: [
+        { name: '铁矿石', target: '13850（11%）', variance: -818, completed: '8689（62.7%）', completedRate: '62.7%', locked: '2014（14.5%）', executing: '2329（16.8%）', nameClass: 'text-blue-700', dotClass: 'bg-blue-500', barClass: 'bg-blue-500' },
+        { name: '粮食', target: '1750（11.5%）', variance: 176, completed: '1449（82.8%）', completedRate: '82.8%', locked: '52（3%）', executing: '425（24.3%）', nameClass: 'text-amber-600', dotClass: 'bg-amber-500', barClass: 'bg-amber-500' },
+        { name: '铝矾土', target: '6433（30.2%）', variance: 2, completed: '4650（72.3%）', completedRate: '72.3%', locked: '605（9.4%）', executing: '1180（18.3%）', nameClass: 'text-cyan-600', dotClass: 'bg-cyan-500', barClass: 'bg-cyan-500' },
+      ],
+      analysisMonth: '2025-11',
+      analysisLastQuery: '2025-11',
+      analysisMetric: 'revenue',
+      analysisMonths: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+      trendPoints2025: [{x:42,y:100},{x:84,y:116},{x:126,y:71},{x:168,y:74},{x:210,y:55},{x:252,y:52},{x:294,y:49},{x:336,y:23},{x:378,y:62},{x:420,y:65},{x:462,y:46},{x:500,y:180}],
+      trendPoints2024: [{x:42,y:87},{x:84,y:97},{x:126,y:100},{x:168,y:90},{x:210,y:90},{x:252,y:97},{x:294,y:74},{x:336,y:52},{x:378,y:62},{x:420,y:52},{x:462,y:68},{x:500,y:46}],
+      vesselRevenueTypes: [
+        { name: '大灵便型', rate: '16.57%', color: '#5573c8' }, { name: '小灵便型', rate: '1.91%', color: '#8dcc72' },
+        { name: '巴拿马型', rate: '28.74%', color: '#f9c44f' }, { name: '好望角型', rate: '36.97%', color: '#ef6265' },
+        { name: 'VLOC型', rate: '15.81%', color: '#6eb8d2' },
+      ],
+      accountingRows: [
+        { item: '本月核算航次收入合计*', current: '41,633.25', previous: '41,817.56', change: '-0.44%' },
+        { item: '本月完航', current: '41,665.06', previous: '35,907.54', change: '16.03%' },
+      ],
+      metricCustomers: [
+        { name: '宝武集团', share: '17.3%', volume: '1503', rating: '战略', countries: '澳大利亚、巴西', volumeClass: 'text-blue-600' },
+        { name: 'VALE', share: '16.7%', volume: '1454', rating: '战略', countries: '巴西', volumeClass: 'text-blue-600' },
+        { name: 'BHP', share: '9.2%', volume: '799', rating: '战略', countries: '澳大利亚', volumeClass: 'text-blue-600' },
+        { name: '首钢集团', share: '7.1%', volume: '620', rating: '战略', countries: '秘鲁、巴西、澳大利亚', volumeClass: 'text-blue-600' },
+        { name: 'ATLAS', share: '5.8%', volume: '507', rating: '战略', countries: '澳大利亚', volumeClass: 'text-blue-600' },
+        { name: '中储粮', share: '16.6%', volume: '241', rating: '战略', countries: '美国、阿根廷', volumeClass: 'text-amber-600' },
+      ],
+      metricFlows: [
+        { country: '澳大利亚', customers: '宝武集团、BHP、ATLAS、首钢集团' },
+        { country: '巴西', customers: 'VALE、宝武集团、首钢集团' },
+        { country: '秘鲁', customers: '首钢集团' },
+        { country: '美洲粮源', customers: '中储粮 · 美国、阿根廷' },
+      ],
     }
   },
   watch: {
@@ -2097,6 +2261,7 @@ createApp({
     },
   },
   mounted() {
+    this.syncKnowledgeVessel(this.activeVessel)
     // 骨架屏 → 内容 → 进度条动效 + 数字滚动
     setTimeout(() => {
       this.loading = false
@@ -2154,7 +2319,11 @@ createApp({
               portId: port.id,
               title: `${node.id === 3 ? '装港' : '卸港'} ${port.sequence}`,
               subtitle: `${port.name} · ${done}/${port.items.length}`,
+              arrived: port.status !== '待抵港',
+              timeLabel: port.status !== '待抵港' ? '抵达时间' : '预计抵达',
+              timeValue: port.eta,
               status: port.status === '已完成' ? 'done' : port.status === '作业中' ? 'active' : 'pending',
+              remaining: port.items.length - done,
               percent: this.portPercent(port),
             }
           }
@@ -2172,6 +2341,7 @@ createApp({
                 title: '航行监控',
                 subtitle: `${port.name} → ${nextPort.name}`,
                 status: port.status === '已完成' ? 'done' : port.status === '作业中' ? 'active' : 'pending',
+                remaining: port.status === '已完成' ? 0 : this.nodeItemCount(this.nodes.find(item => item.id === 4)),
                 percent: port.status === '已完成' ? 100 : port.status === '作业中' ? 35 : 0,
               })
             }
@@ -2187,6 +2357,7 @@ createApp({
             title: node.id === 3 ? '装港作业' : '卸港作业',
             subtitle: `${ports.length}港 · ${done}/${total}`,
             status,
+            remaining: total - done,
             percent: total ? Math.round(done / total * 100) : 0,
             children,
           })
@@ -2198,6 +2369,7 @@ createApp({
             title: node.title,
             subtitle: `${this.nodePercent(node)}% · ${this.nodeDoneCount(node)}/${this.nodeItemCount(node)}`,
             status: node.status,
+            remaining: this.nodeItemCount(node) - this.nodeDoneCount(node),
             percent: this.nodePercent(node),
           })
         }
@@ -2206,6 +2378,10 @@ createApp({
     },
     activeVessel() {
       return this.vessels.find(v => v.active) || this.vessels[0]
+    },
+    analysisMonthLabel() {
+      const [year, month] = this.analysisLastQuery.split('-')
+      return `${year}年${Number(month)}月`
     },
     sortedVessels() {
       const rows = this.vesselTab === 'followed'
@@ -2249,7 +2425,7 @@ createApp({
         }
       }
       this.knowledgeTree.forEach(cat => {
-        if (cat.children) cat.children.forEach(l2 => countLeaves(l2))
+        if (cat.children) cat.children.filter(node => this.knowledgeShipMatches(node)).forEach(l2 => countLeaves(l2))
       })
       return count
     },
@@ -2304,6 +2480,9 @@ createApp({
     },
   },
   methods: {
+    queryAccounting() {
+      this.analysisLastQuery = this.analysisMonth
+    },
     maskName(name) {
       if (!name) return ''
       const chars = Array.from(name)
@@ -2503,6 +2682,7 @@ createApp({
       this.vessels.forEach(x => { x.active = false })
       v.active = true
       this.loadVesselChecklist(v)
+      this.syncKnowledgeVessel(v)
     },
     togglePin(v) { v.pinned = !v.pinned },
     loadVesselChecklist(v) {
@@ -2533,6 +2713,76 @@ createApp({
       this.animated = false
       this.$nextTick(() => { setTimeout(() => { this.animated = true }, 60) })
       this.countUp(this.overallStats.percent)
+    },
+    knowledgeShipMatches(node) {
+      if (this.activeNav !== 'checklist') return true
+      return node.vesselName === this.activeVessel.name || node.label === this.activeVessel.name || node.label.startsWith(this.activeVessel.name + ' ')
+    },
+    knowledgeCategoryCount(cat) {
+      if (this.activeNav !== 'checklist' || !cat.children) return cat.count
+      const active = cat.children.find(node => this.knowledgeShipMatches(node))
+      if (!active) return '0 份'
+      let count = 0
+      const countLeaves = (node) => {
+        if (!node.children || !node.children.length) return
+        if (node.children[0] && (node.children[0].ext || node.children[0].docType)) count += node.children.length
+        else node.children.forEach(countLeaves)
+      }
+      countLeaves(active)
+      return `${count} 份`
+    },
+    syncKnowledgeVessel(v) {
+      const slug = v.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      const company = v.group === 'mine' ? '散运总部' : '雅达公司'
+      const cloneForVessel = (base, prefix) => {
+        const clone = JSON.parse(JSON.stringify(base))
+        const renewIds = (node, path = '0') => {
+          node.id = `${prefix}-${path}`
+          if (node.children) node.children.forEach((child, index) => renewIds(child, `${path}-${index}`))
+        }
+        renewIds(clone)
+        clone.vesselName = v.name
+        clone.open = true
+        return clone
+      }
+
+      const shipCat = this.knowledgeTree.find(cat => cat.type === 'ship-archive')
+      let ship = shipCat.children.find(node => node.vesselName === v.name || node.label === v.name || node.label.startsWith(v.name + ' '))
+      if (!ship) {
+        ship = cloneForVessel(shipCat.children[0], `ship-${slug}`)
+        ship.label = `${v.name} ${company}`
+        ship.params.company = company
+        shipCat.children.push(ship)
+      }
+      ship.vesselName = v.name
+      shipCat.children.forEach(node => { node.open = node.vesselName === v.name })
+
+      const voyageCat = this.knowledgeTree.find(cat => cat.type === 'voyage-archive')
+      let voyageShip = voyageCat.children.find(node => node.vesselName === v.name || node.label === v.name)
+      if (!voyageShip) {
+        voyageShip = cloneForVessel(voyageCat.children[0], `voy-${slug}`)
+        voyageCat.children.push(voyageShip)
+      }
+      voyageShip.vesselName = v.name
+      voyageShip.label = v.name
+      voyageShip.open = true
+      voyageShip.children[0].label = `${v.voyage}航次`
+      voyageShip.children[0].tag = v.status
+      voyageShip.children[0].open = true
+      voyageShip.children[0].children.forEach(doc => { doc.desc = `${v.route} · ${doc.desc.split(' · ').slice(1).join(' · ')}` })
+      voyageCat.children.forEach(node => { node.open = node.vesselName === v.name })
+
+      const portCat = this.knowledgeTree.find(cat => cat.type === 'port-data')
+      let portShip = portCat.children.find(node => node.vesselName === v.name || node.label === v.name)
+      if (!portShip) {
+        portShip = cloneForVessel(portCat.children[0], `port-${slug}`)
+        portCat.children.push(portShip)
+      }
+      portShip.vesselName = v.name
+      portShip.label = v.name
+      portShip.children[0].label = `${v.voyage}航次`
+      portShip.children[0].tag = v.status
+      portCat.children.forEach(node => { node.open = node === portShip && node.open })
     },
     statusChip(status) {
       const map = {
