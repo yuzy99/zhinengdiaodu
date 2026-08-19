@@ -2332,6 +2332,7 @@ createApp({
             children.push(makePortStep(port))
             const nextPort = ports[portIndex + 1]
             if (nextPort) {
+              const transitStatus = nextPort.status !== '待抵港' ? 'done' : port.status === '已完成' ? 'active' : 'pending'
               children.push({
                 key: `transit-${port.id}-${nextPort.id}`,
                 kind: 'transit',
@@ -2340,9 +2341,9 @@ createApp({
                 transitId: `${port.id}-${nextPort.id}`,
                 title: '航行监控',
                 subtitle: `${port.name} → ${nextPort.name}`,
-                status: port.status === '已完成' ? 'done' : port.status === '作业中' ? 'active' : 'pending',
-                remaining: port.status === '已完成' ? 0 : this.nodeItemCount(this.nodes.find(item => item.id === 4)),
-                percent: port.status === '已完成' ? 100 : port.status === '作业中' ? 35 : 0,
+                status: transitStatus,
+                remaining: transitStatus === 'active' ? this.nodeItemCount(this.nodes.find(item => item.id === 4)) : 0,
+                percent: transitStatus === 'done' ? 100 : transitStatus === 'active' ? 35 : 0,
               })
             }
           })
