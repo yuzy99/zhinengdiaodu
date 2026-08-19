@@ -397,20 +397,23 @@
       <div class="px-5 pb-3 shrink-0">
         <div class="workflow-scroll flex items-start overflow-x-auto border-b border-slate-200 bg-white px-4 pt-2 pb-4">
           <template v-for="(step, i) in workflowSteps" :key="step.key">
-          <div v-if="step.kind === 'group'" :class="['flex shrink-0 items-center rounded-xl transition-all', expandedPortGroups[step.nodeId] ? 'bg-blue-50/25 px-1' : 'bg-transparent']">
-            <button @click="togglePortGroup(step.nodeId)" :class="['flex shrink-0 text-center transition-all', expandedPortGroups[step.nodeId] ? 'min-w-[66px] flex-row items-center gap-1 px-1 py-1 text-slate-400 hover:text-blue-600' : 'min-w-[92px] flex-col items-center gap-1 px-2 py-1 text-slate-700 hover:bg-blue-50/70 rounded-lg']">
+          <div v-if="step.kind === 'group'" :class="['flex shrink-0 items-center rounded-2xl transition-all duration-300', expandedPortGroups[step.nodeId] ? 'border border-blue-100 bg-blue-50/50 px-2 py-1 shadow-sm' : 'bg-transparent']">
+            <button @click="togglePortGroup(step.nodeId)" :aria-expanded="expandedPortGroups[step.nodeId]" :class="['group flex shrink-0 items-center text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-blue-300', expandedPortGroups[step.nodeId] ? 'min-w-[76px] flex-col gap-1 border-r border-blue-100 px-2 py-1 text-slate-500 hover:text-blue-700' : 'min-w-[104px] flex-col gap-1 rounded-xl px-2 py-1 text-slate-700 hover:bg-blue-50 hover:shadow-sm']">
               <svg v-if="!expandedPortGroups[step.nodeId]" viewBox="0 0 36 36" class="h-9 w-9 shrink-0"><circle cx="18" cy="18" r="15" :fill="step.status === 'active' ? '#2563eb' : '#fff'" :stroke="step.status === 'active' ? '#2563eb' : '#d8dee8'" stroke-width="2"/><circle v-if="step.status !== 'active'" class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(step)" stroke-width="2.4" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? step.percent : 0)" transform="rotate(-90 18 18)"/><g :class="step.status === 'done' ? 'text-emerald-500' : step.status === 'active' ? 'text-white' : 'text-slate-400'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L5.5 16.5h24l-1 4"/><path d="M9 16.5V13h4.5v3.5"/><path d="M10.5 13V11h2v2"/><path d="M17.5 16.5v2M20.5 16.5v2M23.5 16.5v2"/><path d="M8 22.5c1.2 1 2.4 1 3.6 0 1.2-1 2.4-1 3.6 0 1.2 1 2.4 1 3.6 0 1.2-1 2.4-1 3.6 0"/></g></svg>
-              <span class="min-w-0"><span :class="['block truncate font-bold leading-tight', expandedPortGroups[step.nodeId] ? 'text-[10px] text-slate-400' : 'text-[10.5px]']">{{ step.title }}</span><span v-if="!expandedPortGroups[step.nodeId]" class="mt-0.5 block max-w-[82px] truncate text-[9px] text-slate-400">{{ step.subtitle }}</span></span>
-              <span :class="['font-semibold text-blue-500', expandedPortGroups[step.nodeId] ? 'text-[8.5px]' : 'text-[9px]']">{{ expandedPortGroups[step.nodeId] ? '收起' : '展开' }}</span>
+              <span class="min-w-0"><span :class="['block truncate font-bold leading-tight', expandedPortGroups[step.nodeId] ? 'text-[10px] text-slate-600' : 'text-[10.5px]']">{{ step.title }}</span><span v-if="!expandedPortGroups[step.nodeId]" class="mt-0.5 block max-w-[88px] truncate text-[9px] text-slate-400">{{ step.subtitle }}</span></span>
+              <span :class="['inline-flex items-center gap-0.5 rounded-full font-semibold transition-colors', expandedPortGroups[step.nodeId] ? 'bg-white px-2 py-0.5 text-[8.5px] text-slate-500 ring-1 ring-blue-100 group-hover:text-blue-600' : 'bg-blue-50 px-2.5 py-0.5 text-[9px] text-blue-600 group-hover:bg-blue-100']">
+                {{ expandedPortGroups[step.nodeId] ? '收起港口' : '展开港口' }}
+                <svg :class="['h-2.5 w-2.5 transition-transform duration-300', expandedPortGroups[step.nodeId] ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke-width="2.4" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" /></svg>
+              </span>
             </button>
             <template v-if="expandedPortGroups[step.nodeId]">
-              <span class="relative mx-1 h-0 w-6 shrink-0 border-t-2 border-dotted border-blue-300"><svg class="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 bg-blue-50 p-0.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 14.25h18l-2.5 4.5h-13L3 14.25zM6.5 14.25V9.5h3.25v4.75m.75 0V8h3.25v6.25m.75 0V9.5h3.25v4.75M5 19.5c1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0" /></svg></span>
+              <span class="mx-2 h-0 w-6 shrink-0 border-t-2 border-dotted border-blue-300"></span>
               <template v-for="(portStep, portIndex) in step.children" :key="portStep.key">
                 <button @click="selectWorkflowStep(portStep)" :class="['flex shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-1 transition-all text-center', portStep.kind === 'port' ? 'min-w-[140px]' : 'min-w-[96px]', isActiveWorkflowStep(portStep) ? 'bg-blue-50 text-corp-800 ring-1 ring-blue-200 shadow-sm' : portStep.status === 'done' ? 'text-emerald-700 hover:bg-emerald-50' : 'text-slate-600 hover:bg-slate-50']">
                   <svg viewBox="0 0 36 36" class="h-9 w-9 shrink-0"><circle cx="18" cy="18" r="15" :fill="portStep.status === 'active' ? '#2563eb' : '#fff'" :stroke="portStep.status === 'active' ? '#2563eb' : '#d8dee8'" stroke-width="2"/><circle v-if="portStep.status !== 'active'" class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(portStep)" stroke-width="2.4" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? portStep.percent : 0)" transform="rotate(-90 18 18)"/><g :class="portStep.status === 'done' ? 'text-emerald-500' : portStep.status === 'active' ? 'text-white' : 'text-slate-400'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L5.5 16.5h24l-1 4"/><path d="M9 16.5V13h4.5v3.5"/><path d="M10.5 13V11h2v2"/><path d="M17.5 16.5v2M20.5 16.5v2M23.5 16.5v2"/><path d="M8 22.5c1.2 1 2.4 1 3.6 0 1.2-1 2.4-1 3.6 0 1.2 1 2.4 1 3.6 0 1.2-1 2.4-1 3.6 0"/></g></svg>
                   <span class="min-w-0"><span class="block truncate text-[10.5px] font-bold">{{ portStep.title }}</span><span class="mt-0.5 block truncate text-[9px] text-slate-400" :class="portStep.kind === 'port' ? 'max-w-[112px]' : 'max-w-[72px]'">{{ portStep.subtitle }}</span><span v-if="portStep.kind === 'port'" :class="['mt-0.5 block whitespace-nowrap text-[8px] tabular-nums', portStep.arrived ? 'text-emerald-600' : 'text-amber-600']">{{ portStep.timeLabel }} {{ portStep.timeValue }}</span></span>
                 </button>
-                <span v-if="portIndex < step.children.length - 1" :class="['relative mx-1 h-0 w-6 shrink-0 border-t-2 border-dotted', portStep.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"><svg :class="['absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 bg-blue-50 p-0.5', portStep.status === 'done' ? 'text-emerald-500' : 'text-slate-400']" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 14.25h18l-2.5 4.5h-13L3 14.25zM6.5 14.25V9.5h3.25v4.75m.75 0V8h3.25v6.25m.75 0V9.5h3.25v4.75M5 19.5c1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0" /></svg></span>
+                <span v-if="portIndex < step.children.length - 1" :class="['mx-1 h-0 w-6 shrink-0 border-t-2 border-dotted', portStep.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"></span>
               </template>
             </template>
           </div>
@@ -438,13 +441,13 @@
               <span v-if="step.status !== 'done'" class="max-w-[78px] truncate tabular-nums leading-tight mt-0.5 text-[9px] text-slate-400">{{ step.subtitle }}</span>
             </div>
           </button>
-          <span v-if="i < workflowSteps.length - 1" :class="['relative mx-1 mt-[17px] h-0 w-14 shrink-0 border-t-2 border-dashed', step.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"><svg :class="['absolute left-1/2 top-1/2 h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 bg-white p-0.5', step.status === 'done' ? 'text-emerald-500' : 'text-slate-400']" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 14.25h18l-2.5 4.5h-13L3 14.25zM6.5 14.25V9.5h3.25v4.75m.75 0V8h3.25v6.25m.75 0V9.5h3.25v4.75M5 19.5c1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0 1.2.8 2.4.8 3.6 0 1.2-.8 2.4-.8 3.6 0" /></svg></span>
+          <span v-if="i < workflowSteps.length - 1" :class="['mx-1 mt-[17px] h-0 w-14 shrink-0 border-t-2 border-dashed', step.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"></span>
           </template>
         </div>
       </div>
 
       <!-- 航次进度（原左侧船舶卡片移入，浅色背景适配） -->
-      <div class="px-5 pb-3 shrink-0">
+      <div class="px-5 pb-1 shrink-0">
         <div class="flex items-center gap-4">
           <div class="flex items-baseline gap-2 shrink-0">
             <span class="text-[11px] text-slate-500">航次进度</span>
@@ -457,19 +460,6 @@
         </div>
       </div>
 
-      <!-- 航次总进度（极简细条） -->
-      <div class="px-5 pb-3 shrink-0">
-        <div class="flex items-center gap-4">
-          <div class="flex items-baseline gap-2 shrink-0">
-            <span class="text-[11px] text-slate-500">航次总进度</span>
-            <span class="text-[16px] font-extrabold text-corp-700 tabular-nums leading-none">{{ displayPercent }}%</span>
-          </div>
-          <div class="flex-1 h-1.5 rounded-full bg-slate-200/70 overflow-hidden min-w-[80px]">
-            <div class="h-full rounded-full bg-gradient-to-r from-corp-600 via-blue-400 to-emerald-400 transition-all duration-1000 ease-out"
-              :style="{ width: (animated ? overallStats.percent : 0) + '%' }"></div>
-          </div>
-        </div>
-      </div>
       </div><!-- /顶部可收起区域 -->
 
       <!-- 收起态：紧凑条 -->
@@ -503,7 +493,7 @@
       </div>
 
       <!-- 详情区：看板三分栏（已完成 / 执行中 / 待启动） -->
-      <div class="flex-1 min-h-0 px-5 pb-5 pt-3 flex flex-col">
+      <div class="flex-1 min-h-0 px-5 pb-5 pt-1 flex flex-col">
         <transition name="node-fade" mode="out-in">
           <div :key="activeNode.id + '-' + (activePortCall?.id || 'stage')" class="flex flex-col h-full min-h-0">
             <!-- 三栏看板 -->
