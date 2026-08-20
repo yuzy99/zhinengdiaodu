@@ -396,14 +396,17 @@
       <!-- 流程导航 Step-Tab（控制中枢）：点击切换下方详情 -->
       <div class="px-5 pb-3 shrink-0">
         <div class="workflow-scroll flex items-start overflow-x-auto border-b border-slate-200 bg-white px-4 pt-2 pb-4">
-          <template v-for="(step, i) in workflowSteps" :key="step.key">
-          <div v-if="step.kind === 'group'" :class="['flex shrink-0 items-center rounded-2xl transition-all duration-300', expandedPortGroups[step.nodeId] ? 'border border-blue-100 bg-blue-50/50 px-2 py-1 shadow-sm' : 'bg-transparent']">
-            <button @click="togglePortGroup(step.nodeId)" :aria-expanded="expandedPortGroups[step.nodeId]" :class="['group flex shrink-0 items-center text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-blue-300', expandedPortGroups[step.nodeId] ? 'min-w-[76px] flex-col gap-1 border-r border-blue-100 px-2 py-1 text-slate-500 hover:text-blue-700' : 'min-w-[104px] flex-col gap-1 rounded-xl px-2 py-1 text-slate-700 hover:bg-blue-50 hover:shadow-sm']">
+          <template v-for="(step, i) in visibleWorkflowSteps" :key="step.key">
+          <button v-if="step.kind === 'ellipsis'" @click="workflowAllNodesExpanded = true" class="mt-1 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-400 transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600" :title="`展开另外 ${step.count} 个流程节点`">
+            <span class="text-lg font-bold leading-none tracking-[3px]">•••</span>
+            <span class="text-[8.5px] font-semibold">{{ step.count }}个节点</span>
+          </button>
+          <div v-else-if="step.kind === 'group'" :class="['flex shrink-0 items-center rounded-2xl transition-all duration-300', expandedPortGroups[step.nodeId] ? 'border border-blue-100 bg-blue-50/50 px-2 py-1 shadow-sm' : 'bg-transparent']">
+            <button @click="selectNode(step.nodeId)" aria-expanded="true" :class="['group flex shrink-0 items-center text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-blue-300', expandedPortGroups[step.nodeId] ? 'min-w-[76px] flex-col gap-1 border-r border-blue-100 px-2 py-1 text-slate-500 hover:text-blue-700' : 'min-w-[104px] flex-col gap-1 rounded-xl px-2 py-1 text-slate-700 hover:bg-blue-50 hover:shadow-sm']">
               <svg v-if="!expandedPortGroups[step.nodeId]" viewBox="0 0 36 36" class="h-9 w-9 shrink-0"><circle cx="18" cy="18" r="15" :fill="step.status === 'active' ? '#2563eb' : '#fff'" :stroke="step.status === 'active' ? '#2563eb' : '#d8dee8'" stroke-width="2"/><circle v-if="step.status !== 'active'" class="ring-arc" cx="18" cy="18" r="15" fill="none" :stroke="workflowRingColor(step)" stroke-width="2.4" stroke-linecap="round" :stroke-dasharray="94.25" :stroke-dashoffset="ringOffset(animated ? step.percent : 0)" transform="rotate(-90 18 18)"/><g :class="step.status === 'done' ? 'text-emerald-500' : step.status === 'active' ? 'text-white' : 'text-slate-400'" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 20.5L5.5 16.5h24l-1 4"/><path d="M9 16.5V13h4.5v3.5"/><path d="M10.5 13V11h2v2"/><path d="M17.5 16.5v2M20.5 16.5v2M23.5 16.5v2"/><path d="M8 22.5c1.2 1 2.4 1 3.6 0 1.2-1 2.4-1 3.6 0 1.2 1 2.4 1 3.6 0 1.2-1 2.4-1 3.6 0"/></g></svg>
               <span class="min-w-0"><span :class="['block truncate font-bold leading-tight', expandedPortGroups[step.nodeId] ? 'text-[10px] text-slate-600' : 'text-[10.5px]']">{{ step.title }}</span><span v-if="!expandedPortGroups[step.nodeId]" class="mt-0.5 block max-w-[88px] truncate text-[9px] text-slate-400">{{ step.subtitle }}</span></span>
               <span :class="['inline-flex items-center gap-0.5 rounded-full font-semibold transition-colors', expandedPortGroups[step.nodeId] ? 'bg-white px-2 py-0.5 text-[8.5px] text-slate-500 ring-1 ring-blue-100 group-hover:text-blue-600' : 'bg-blue-50 px-2.5 py-0.5 text-[9px] text-blue-600 group-hover:bg-blue-100']">
-                {{ expandedPortGroups[step.nodeId] ? '收起港口' : '展开港口' }}
-                <svg :class="['h-2.5 w-2.5 transition-transform duration-300', expandedPortGroups[step.nodeId] ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke-width="2.4" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" /></svg>
+                全部港口
               </span>
             </button>
             <template v-if="expandedPortGroups[step.nodeId]">
@@ -441,8 +444,9 @@
               <span v-if="step.status !== 'done'" class="max-w-[78px] truncate tabular-nums leading-tight mt-0.5 text-[9px] text-slate-400">{{ step.subtitle }}</span>
             </div>
           </button>
-          <span v-if="i < workflowSteps.length - 1" :class="['mx-1 mt-[17px] h-0 w-14 shrink-0 border-t-2 border-dashed', step.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"></span>
+          <span v-if="i < visibleWorkflowSteps.length - 1" :class="['mx-1 mt-[17px] h-0 w-14 shrink-0 border-t-2 border-dashed', step.status === 'done' ? 'border-emerald-300' : 'border-slate-300']"></span>
           </template>
+          <button v-if="workflowAllNodesExpanded" @click="workflowAllNodesExpanded = false" class="ml-2 mt-1 h-14 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-[9.5px] font-semibold text-slate-500 hover:border-blue-200 hover:text-blue-600">收起其他节点</button>
         </div>
       </div>
 
@@ -1807,7 +1811,8 @@ createApp({
       flatLimit: 5, // 节点卡片默认展示条数
       activePortId: 'load-2',
       activeTransitId: null,
-      expandedPortGroups: { 3: false, 5: false },
+      expandedPortGroups: { 3: true, 5: true },
+      workflowAllNodesExpanded: false,
 
       // ── 6 节点 CHECKLIST ──
       nodes: [
@@ -2363,6 +2368,17 @@ createApp({
       })
       return steps
     },
+    visibleWorkflowSteps() {
+      if (this.workflowAllNodesExpanded || this.workflowSteps.length <= 3) return this.workflowSteps
+      const activeIndex = Math.max(0, this.workflowSteps.findIndex(step => step.nodeId === this.activeNodeId))
+      const start = Math.max(0, activeIndex - 1)
+      const end = Math.min(this.workflowSteps.length - 1, activeIndex + 1)
+      const visible = this.workflowSteps.slice(start, end + 1)
+      if (start > 0) visible.unshift({ key: 'ellipsis-before', kind: 'ellipsis', count: start, status: 'pending' })
+      const hiddenAfter = this.workflowSteps.length - end - 1
+      if (hiddenAfter > 0) visible.push({ key: 'ellipsis-after', kind: 'ellipsis', count: hiddenAfter, status: 'pending' })
+      return visible
+    },
     activeVessel() {
       return this.vessels.find(v => v.active) || this.vessels[0]
     },
@@ -2567,6 +2583,7 @@ createApp({
     // ── Step-Tab 流程导航 ──
     selectNode(id) {
       this.activeNodeId = id
+      this.workflowAllNodesExpanded = false
       const ports = this.portCalls.filter(port => port.nodeId === id)
       if (ports.length && !ports.some(port => port.id === this.activePortId)) {
         this.activePortId = ports.find(port => port.status === '作业中')?.id || ports[0].id
@@ -2574,6 +2591,7 @@ createApp({
     },
     selectWorkflowStep(step) {
       this.activeNodeId = step.nodeId
+      this.workflowAllNodesExpanded = false
       this.activeTransitId = step.kind === 'transit' ? step.transitId : null
       if (step.portId) this.activePortId = step.portId
     },
